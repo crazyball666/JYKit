@@ -28,15 +28,25 @@ TODO: Add long description of the pod here.
   s.source           = { :git => 'https://github.com/crazyball/JYKit.git', :tag => s.version.to_s }
   # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
 
-  s.ios.deployment_target = '10.0'
-
-  s.source_files = 'JYKit/Classes/**/*'
+  s.ios.deployment_target = '11.0'
+  s.swift_version = ['5.0']
   
-  # s.resource_bundles = {
-  #   'JYKit' => ['JYKit/Assets/*.png']
-  # }
-
-  # s.public_header_files = 'Pod/Classes/**/*.h'
-  # s.frameworks = 'UIKit', 'MapKit'
-  # s.dependency 'AFNetworking', '~> 2.3'
+  s.subspec 'DyTool' do |ss|
+      ss.source_files = 'JYKit/DYTool/Classes/**/*.{h,m,swift}'
+      ss.resources = 'JYKit/DYTool/Assets/SDKImages.bundle'
+      ss.dependency 'JYKit/Tools'
+  end
+  
+  s.subspec 'HUD' do |ss|
+      ss.source_files = 'JYKit/HUD/Classes/**/*'
+  end
+  
+  s.subspec 'QRCode' do |ss|
+      ss.source_files = 'JYKit/QRCode/Classes/**/*'
+  end
+  
+  s.subspec 'Tools' do |ss|
+      ss.source_files = 'JYKit/Tools/Classes/**/*'
+  end
+  
 end
