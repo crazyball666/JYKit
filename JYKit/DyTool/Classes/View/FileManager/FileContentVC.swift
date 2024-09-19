@@ -7,8 +7,57 @@
 
 import Foundation
 
+protocol IFileContentHandler {
+    var path: String { get }
+    func getContent() throws -> String
+    func saveContent(content: String) throws
+}
+
+/// Plist 处理器
+class PlistContentHandler: IFileContentHandler {
+    var path: String
+    var format: PropertyListSerialization.PropertyListFormat = .binary
+    
+    func getContent() throws -> String {
+        let data = try Data(contentsOf: URL(fileURLWithPath: path))
+        var format: PropertyListSerialization.PropertyListFormat = .binary
+        let info = try PropertyListSerialization.propertyList(from: data, format: &format)
+        self.format = format
+        let xml = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        return String(data: xml, encoding: .utf8) ?? ""
+    }
+    
+    func saveContent(content: String) throws {
+        guard let data = content.data(using: .utf8) else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "string convert to data error"])
+        }
+        let info = try PropertyListSerialization.propertyList(from: data, format: nil)
+        let plistData = try PropertyListSerialization.data(fromPropertyList: info, format: self.format, options: 0)
+        try plistData.write(to: URL(fileURLWithPath: self.path))
+    }
+    
+    init(path: String) {
+        self.path = path
+    }
+}
+
+/// 文本处理器
+struct TextContentHandler: IFileContentHandler {
+    var path: String
+    
+    func getContent() throws -> String {
+        try String(contentsOfFile: path)
+    }
+    
+    func saveContent(content: String) throws {
+        try content.write(toFile: path, atomically: true, encoding: .utf8)
+    }
+}
+
+
 class FileContentVC: UIViewController {
     let path: String
+    var contentView: UITextView?
     
     init(path: String) {
         self.path = path
@@ -17,11 +66,20 @@ class FileContentVC: UIViewController {
     
     required init?(coder: NSCoder) { return nil }
     
+    lazy var fileContentHandler: IFileContentHandler = {
+        let pathExtension = (path as NSString).pathExtension
+        switch pathExtension {
+        case "plist":
+            return PlistContentHandler(path: path)
+        default:
+            return TextContentHandler(path: path)
+        }
+    }()
+    
     override func viewDidLoad() {
         view.backgroundColor = .white
         navigationItem.title = (self.path as NSString).lastPathComponent
         let pathExtension = (self.path as NSString).pathExtension
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "导出", style: .done, target: self, action: #selector(onTapExport))
         
         if ["png", "jpg", "jpeg"].contains(pathExtension) {
             let imageView = UIImageView()
@@ -34,10 +92,10 @@ class FileContentVC: UIViewController {
             imageView.image = UIImage(contentsOfFile: path)
         } else {
             let contentView = UITextView()
+            self.contentView = contentView
             view.addSubview(contentView)
             contentView.backgroundColor = .black
             contentView.textColor = .white
-            contentView.isEditable = false
             contentView.translatesAutoresizingMaskIntoConstraints = false
             contentView.topAnchor.constraint(equalTo: view.topAnchor).isActive = true
             contentView.leftAnchor.constraint(equalTo: view.leftAnchor).isActive = true
@@ -46,41 +104,32 @@ class FileContentVC: UIViewController {
             
             let content: String
             do {
-                switch pathExtension {
-                case "plist":
-                    content = try getPlistData()
-                default:
-                    content = try String(contentsOfFile: path)
-                }
+                content = try fileContentHandler.getContent()
+                navigationItem.rightBarButtonItem = UIBarButtonItem(title: "保存", style: .done, target: self, action: #selector(onTapSave))
+                contentView.isEditable = true
             } catch {
                 content = "读取失败：\(error.localizedDescription)"
+                contentView.isEditable = false
             }
             contentView.text = content
         }
     }
     
     
-    @objc func onTapExport() {
-        let filePath = URL(fileURLWithPath: path)
-        let air = UIActivityViewController(activityItems: [filePath], applicationActivities: nil)
-        if (UIDevice.current.userInterfaceIdiom == .pad) {
-            air.popoverPresentationController?.sourceView = self.view
+    @objc func onTapSave() {
+        guard let contentView = contentView, contentView.isEditable else {
+            return
         }
-        self.present(air, animated: true, completion: nil)
-        
-//        let filePath = URL(fileURLWithPath: path)
-//        let vc = UIDocumentInteractionController(url: filePath)
-//        vc.presentOpenInMenu(from: CGRect.zero, in: self.view, animated: true)
+        Tools.showAlert(title: "是否修改内容？", confirmHandler: {
+            do {
+                try self.fileContentHandler.saveContent(content: contentView.text)
+                JYToast.show("保存成功")
+                contentView.text = try self.fileContentHandler.getContent()
+            } catch {
+                JYToast.show("保存失败：\(error.localizedDescription)")
+            }
+        })
     }
 }
 
-extension FileContentVC {
-    func getPlistData() throws -> String {
-        let data = try Data(contentsOf: URL(fileURLWithPath: path))
-        let info = try PropertyListSerialization.propertyList(from: data, format: nil)
-        print(info)
-        let xml = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
-        return String(data: xml, encoding: .utf8) ?? ""
-    }
-}
 

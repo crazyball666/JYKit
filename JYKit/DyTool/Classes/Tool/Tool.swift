@@ -105,9 +105,18 @@ struct Tools {
     
     /// 显示Alert
     static func showAlert(_ message: String, title: String = "确定", handler: (()->Void)? = nil) {
-        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction.init(title: title, style: .default, handler: { _ in
-            handler?()
+        showAlert(title: nil, message: message, cancelText: nil, confirmText: title, confirmHandler: handler)
+    }
+    
+    static func showAlert(title: String?, message: String? = nil, cancelText: String? = "取消", confirmText: String = "确定", cancelHandler: (() -> Void)? = nil, confirmHandler: (() -> Void)? = nil) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        if let cancelText = cancelText {
+            alert.addAction(UIAlertAction.init(title: cancelText, style: .destructive, handler: { _ in
+                cancelHandler?()
+            }))
+        }
+        alert.addAction(UIAlertAction.init(title: confirmText, style: .default, handler: { _ in
+            confirmHandler?()
         }))
         rootVC()?.topVC().present(alert, animated: true, completion: nil)
     }

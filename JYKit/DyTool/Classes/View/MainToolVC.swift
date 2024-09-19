@@ -58,13 +58,17 @@ extension MainToolVC {
     }
     
     @objc func clearKeyChain() {
-        Tools.clearAllKeyChainItems()
-        Tools.showAlert("已清空KeyChain")
+        Tools.showAlert(title: "确认清空 KeyChain？", confirmHandler: {
+            Tools.clearAllKeyChainItems()
+            JYToast.show("已清空KeyChain")
+        })
     }
     
     @objc func clearUserDefault() {
-        Tools.clearAllUserDefault()
-        Tools.showAlert("已清空UserDefault")
+        Tools.showAlert(title: "确认清空 UserDefault？", confirmHandler: {
+            Tools.clearAllUserDefault()
+            JYToast.show("已清空UserDefault")
+        })
     }
     
     @objc func getProcessInfo() {
@@ -79,20 +83,6 @@ extension MainToolVC {
     @objc func goAppFileManage() {
         navigationController?.pushViewController(DirectoryManageVC(path: Bundle.main.bundlePath), animated: true)
     }
-    
-//    @objc func testCrash() {
-//        let a = [1, 2]
-//        print(a[3])
-//    }
-//
-//    @objc func exportCrash() {
-////        let crashPath = URL(string: NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!.appending("crash.log"))!
-////        let text = CrashReporter.shared.getLastCrashReport()
-////        try? text.data(using: .utf8)?.write(to: crashPath)
-////
-////        let air = UIActivityViewController(activityItems: [crashPath], applicationActivities: nil)
-////        self.present(air, animated: true, completion: nil)
-//    }
 }
 
 

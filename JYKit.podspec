@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'JYKit'
-  s.version          = '0.1.0'
+  s.version          = '0.0.1'
   s.summary          = 'A short description of JYKit.'
 
 # This description is used to generate tags and improve search results.
@@ -22,11 +22,9 @@ TODO: Add long description of the pod here.
                        DESC
 
   s.homepage         = 'https://github.com/crazyball/JYKit'
-  # s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'crazyball' => 'crazyball6666@gmail.com' }
   s.source           = { :git => 'https://github.com/crazyball/JYKit.git', :tag => s.version.to_s }
-  # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
 
   s.ios.deployment_target = '11.0'
   s.swift_version = ['5.0']
@@ -35,6 +33,7 @@ TODO: Add long description of the pod here.
       ss.source_files = 'JYKit/DYTool/Classes/**/*.{h,m,swift}'
       ss.resources = 'JYKit/DYTool/Assets/SDKImages.bundle'
       ss.dependency 'JYKit/Tools'
+      ss.dependency 'JYKit/HUD'
   end
   
   s.subspec 'HUD' do |ss|

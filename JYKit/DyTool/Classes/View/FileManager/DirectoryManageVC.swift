@@ -27,7 +27,11 @@ class DirectoryManageVC: UIViewController {
     }
     
     let tableView = UITableView()
-    var contents = [FileInfo]()
+    var contents = [FileInfo]() {
+        didSet {
+            tableView.reloadData()
+        }
+    }
     
     required init?(coder: NSCoder) { return nil }
         
@@ -39,10 +43,13 @@ class DirectoryManageVC: UIViewController {
         return UIImage(inSDK: "file.png")?.toSize(size: CGSize(width: 26, height: 26))
     }()
     
- 
-    
     override func viewDidLoad() {
         navigationItem.title = (self.path as NSString).lastPathComponent
+        loadContents()
+        setupUI()
+    }
+    
+    func loadContents() {
         let contents = (try? FileManager.default.contentsOfDirectory(atPath: self.path)) ?? []
         self.contents = contents.compactMap({ (name) -> FileInfo? in
             guard let info = try? FileManager.default.attributesOfItem(atPath: self.path + "/" + name) else {
@@ -57,7 +64,6 @@ class DirectoryManageVC: UIViewController {
                 size: info[.size] as? Int ?? 0
             )
         })
-        setupUI()
     }
     
     func setupUI() {
@@ -97,7 +103,34 @@ extension DirectoryManageVC: UITableViewDataSource, UITableViewDelegate {
         if model.isDirectory {
             navigationController?.pushViewController(DirectoryManageVC(path: model.path), animated: true)
         } else {
-            navigationController?.pushViewController(FileContentVC(path: model.path), animated: true)
+            let sheet = UIAlertController(title: "操作", message: model.path, preferredStyle: .actionSheet)
+            sheet.addAction(UIAlertAction(title: "查看", style: .default, handler: { _ in
+                self.navigationController?.pushViewController(FileContentVC(path: model.path), animated: true)
+            }))
+            sheet.addAction(UIAlertAction(title: "导出", style: .default, handler: { _ in
+                let filePath = URL(fileURLWithPath: model.path)
+                let air = UIActivityViewController(activityItems: [filePath], applicationActivities: nil)
+                if (UIDevice.current.userInterfaceIdiom == .pad) {
+                    air.popoverPresentationController?.sourceView = self.view
+                }
+                self.present(air, animated: true, completion: nil)
+            }))
+            sheet.addAction(UIAlertAction(title: "复制路径", style: .default, handler: { _ in
+                UIPasteboard.general.string = model.path
+            }))
+            sheet.addAction(UIAlertAction(title: "删除", style: .destructive, handler: { _ in
+                Tools.showAlert(title: "确认删除？", confirmHandler: {
+                    do {
+                        try FileManager.default.removeItem(atPath: model.path)
+                        JYToast.show("删除成功")
+                        self.loadContents()
+                    } catch {
+                        JYToast.show("删除失败：" + error.localizedDescription)
+                    }
+                })
+            }))
+            sheet.addAction(UIAlertAction(title: "取消", style: .cancel, handler: nil))
+            self.present(sheet, animated: true)
         }
     }
 }

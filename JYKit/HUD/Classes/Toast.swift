@@ -60,7 +60,7 @@ public struct JYToast {
     }
 }
 
-class ToastView: UIVisualEffectView {
+fileprivate class ToastView: UIVisualEffectView {
     var timer: Timer?
     private let text: String
     private let container: UIView
@@ -121,7 +121,7 @@ class ToastView: UIVisualEffectView {
 }
 
 
-extension ToastView {
+fileprivate extension ToastView {
     func setInitialState() {
         self.alpha = 0
         self.center = container.center
