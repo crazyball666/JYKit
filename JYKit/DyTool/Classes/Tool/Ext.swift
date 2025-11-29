@@ -7,8 +7,75 @@
 
 import Foundation
 
+// MARK - Tool Functions
+
+/// 格式化数据大小
+/// - Parameters:
+///   - bytes: 数据大小（字节）
+///   - maxDecimalPlaces: 保留小数位数
+/// - Returns: 格式化字符串
+fileprivate func formatDataSize(bytes: Double, _ maxDecimalPlaces: Int = 2) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB"]
+    var unitIndex = 0
+    var size = bytes
+    while size >= 1024 && unitIndex < units.count - 1 {
+        size /= 1024
+        unitIndex += 1
+    }
+    let formatter = NumberFormatter()
+    formatter.maximumFractionDigits = maxDecimalPlaces
+    formatter.minimumFractionDigits = maxDecimalPlaces
+    formatter.numberStyle = .decimal
+    guard let formatted = formatter.string(from: NSNumber(value: size)) else {
+        return "\(bytes)B"
+    }
+    return "\(formatted)\(units[unitIndex])"
+}
+
+// MARK: - UIApplication
+extension UIApplication {
+    /// App当前的 key window
+    var currentKeyWindow: UIWindow? {
+        if #available(iOS 13, *) {
+            if let window = connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .flatMap({ $0.windows })
+                .first(where: { $0.isKeyWindow }) {
+                return window
+            }
+        }
+        if let window = keyWindow {
+            return window
+        }
+        if let window = windows.first(where: { $0.isKeyWindow }) {
+            return window
+        }
+        if let window = delegate?.window as? UIWindow {
+            return window
+        }
+        return nil
+    }
+    
+    /// 当前旋转方向
+    var currentInterfaceOrientation: UIInterfaceOrientation {
+       if #available(iOS 13.0, *) {
+           return connectedScenes
+               .compactMap { $0 as? UIWindowScene }
+               .first { $0.activationState == .foregroundActive }?
+               .interfaceOrientation
+               ?? .portrait
+       } else {
+           // iOS 12 及以下
+           return self.statusBarOrientation
+       }
+   }
+}
+
+
 // MARK: - UIViewController
-extension UIViewController {
+public extension UIViewController {
+    /// 获取当前显示最上层的ViewController
+    /// - Returns: UIViewController
     func topVC() -> UIViewController {
         var topController = self
         while (topController.presentedViewController != nil) {
@@ -19,7 +86,7 @@ extension UIViewController {
 }
 
 // MARK: - UIColor
-extension UIColor {
+public extension UIColor {
     /// rgba创建UIColor
     convenience init(rgba: String) {
         var r: CGFloat = 0.0
@@ -72,7 +139,7 @@ extension Bundle {
 }
 
 // MARK: - Date
-extension Date {
+public extension Date {
     var time: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy/MM/dd HH:mm:ss"
@@ -81,7 +148,7 @@ extension Date {
 }
 
 // MARK: - String
-extension String {
+public extension String {
     // 计算文本需要的长宽
     // swiftlint:disable line_length
     func textWidth(font: UIFont, height: CGFloat) -> CGFloat {
@@ -98,4 +165,29 @@ extension UIImage {
     convenience init?(inSDK name: String) {
         self.init(named: name, in: Bundle.SDK, compatibleWith: nil)
     }
+}
+
+// MARK - BinaryInteger
+public extension BinaryInteger {
+    var asKB: Double { Double(self) / 1024 }
+    var asMB: Double { Double(self) / (1024 * 1024) }
+    var toGB: Double { Double(self) / (1024 * 1024 * 1024) }
+    var toTB: Double { Double(self) / (1024 * 1024 * 1024 * 1024) }
+    func formattedAsDataSize(_ maxDecimalPlaces: Int = 2) -> String { formatDataSize(bytes: Double(self), maxDecimalPlaces) }
+}
+
+// MARK - FloatingPoint
+public extension FloatingPoint {
+    var asKB: Self { self / 1024 }
+    var asMB: Self { self / (1024 * 1024) }
+    var asGB: Self { self / (1024 * 1024 * 1024) }
+    var asTB: Self { self / (1024 * 1024 * 1024 * 1024) }
+}
+
+public extension Float {
+    func formattedAsDataSize(_ maxDecimalPlaces: Int = 2) -> String { formatDataSize(bytes: Double(self), maxDecimalPlaces) }
+}
+
+public extension Double {
+    func formattedAsDataSize(_ maxDecimalPlaces: Int = 2) -> String { formatDataSize(bytes: Double(self), maxDecimalPlaces) }
 }

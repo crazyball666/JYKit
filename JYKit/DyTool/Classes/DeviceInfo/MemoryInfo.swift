@@ -10,6 +10,7 @@ import Foundation
 struct MemoryInfo {
     /// 获取物理内存（GB）
     var physicalMemory = Double(ProcessInfo.processInfo.physicalMemory).toGB
+    
     /// 获取当前应用内存使用情况（MB）
     func getMemory() -> Double {
         var info = mach_task_basic_info()
@@ -17,7 +18,6 @@ struct MemoryInfo {
         var count = mach_msg_type_number_t(MACH_TASK_BASIC_INFO_COUNT)
         let _ = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: MACH_TASK_BASIC_INFO_COUNT) {
-                
                     task_info(mach_task_self_,
                             task_flavor_t(MACH_TASK_BASIC_INFO),
                             $0,

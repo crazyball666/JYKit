@@ -26,10 +26,10 @@ import UIKit
     
     /// 显示悬浮球
     public static func showBall() {
-        SKFloatingBall.default.install()
+        DYFloatingBall.default.install()
+        DYMonitorView.shared.install()
     }
 }
-
 
 
 extension UIWindow {    

@@ -1,5 +1,5 @@
 //
-//  MainToolVC.swift
+//  DYMainVC.swift
 //  DyTool
 //
 //  Created by crazyball on 2022/7/17.
@@ -7,21 +7,44 @@
 
 import UIKit
 
-struct ToolItem {
+fileprivate struct ToolItem {
     var title: String
     var selector: Selector
     var userInfo: Any?
 }
 
+class DYMainVC: UINavigationController {
+    static let shared = DYMainVC(rootViewController: MainToolVC())
+    
+    override func viewDidLoad() {
+        view.backgroundColor = .white
+        navigationBar.backgroundColor = .white
+    }
+    
+    func present() {
+        guard let topVC = Tools.rootVC()?.topVC(), topVC != self else {
+            return
+        }
+        if self.isBeingPresented {
+            self.dismiss(animated: false) {
+                topVC.present(self, animated: true, completion: nil)
+            }
+            return
+        }
+        topVC.present(self, animated: true, completion: nil)
+    }
+    
+    func dismiss() {
+        self.dismiss(animated: true)
+    }
+}
 
 
-
-class MainToolVC: DYBaseVC {
-    static let shared = MainToolVC()
+fileprivate class MainToolVC: DYBaseVC {
     private var tableView = UITableView()
     private var items = [
         ToolItem(title: "日志查看", selector: #selector(showLogs)),
-        ToolItem(title: "性能监控", selector: #selector(showPerform)),
+//        ToolItem(title: "性能监控", selector: #selector(showPerform)),
         ToolItem(title: "清空KeyChain", selector: #selector(clearKeyChain)),
         ToolItem(title: "清空UserDefault", selector: #selector(clearUserDefault)),
         ToolItem(title: "获取ProcessInfo参数", selector: #selector(getProcessInfo)),

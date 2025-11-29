@@ -13,46 +13,19 @@ func mainBounds() ->CGRect {
 
 
 func DEBUGPrint(_ message: Any? = nil, file: String = #file, function: String = #function, line: Int = #line) {
-    #if DEBUG
+#if DEBUG
     // 获取文件名
     let fileName = (file as NSString).lastPathComponent
     // 打印日志内容
     print("【Hook】\(fileName):\(line) \(function) | \(message ?? "")")
-    #endif
+#endif // DEBUG
 }
 
-
-
 struct Tools {
-    // 旋转方向
-    static var interfaceOrientation: UIInterfaceOrientation {
-        if #available(iOS 13.0, *), let interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation {
-            return interfaceOrientation
-        } else {
-            return UIApplication.shared.statusBarOrientation
-        }
-    }
     
     /// 根VC
     static func rootVC() -> UIViewController? {
-        if let window = UIApplication.shared.delegate?.window as? UIWindow {
-            return window.rootViewController
-        }
-
-        if let rootVC = UIApplication.shared.keyWindow?.rootViewController {
-            return rootVC
-        }
-        
-        if let rootVC = UIApplication.shared.windows.filter({$0.isKeyWindow}).first?.rootViewController {
-            return rootVC
-        }
-        
-        if let rootVC = UIApplication.shared.windows.first?.rootViewController {
-            return rootVC
-        }
-        
-        print("Fatal error: window or keyWindow is nil")
-        return nil
+        return UIApplication.shared.currentKeyWindow?.rootViewController
     }
     
     /// 清空KeyChain

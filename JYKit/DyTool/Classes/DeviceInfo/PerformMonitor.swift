@@ -7,11 +7,10 @@
 
 import Foundation
 class PerformMonitor {
-    typealias UpdateBlock = (_ cpu: Float, _ memory: Float, _ downloadRate: UInt32, _ uploadRate: UInt32) -> Void
+    typealias UpdateBlock = (_ cpu: Float, _ memory: Float, _ downloadRate: UInt64, _ uploadRate: UInt64) -> Void
     static let shared: PerformMonitor = PerformMonitor()
     private var cpuInfo: CPUInfo = CPUInfo()
     private var memoryInfo: MemoryInfo = MemoryInfo()
-    private var netInfo: NetInfo = NetInfo()
     private var timer: Timer!
     /// 获取CPU核心数
     var cpuCore: Int { return cpuInfo.physicalCoreCount }
@@ -23,10 +22,10 @@ class PerformMonitor {
     /// cpu 使用率
     /// memory 使用的内存(MB)
     private var updateBlock: UpdateBlock = {cpu,memory,download,upload in }
-    private var receivedFlow: UInt32 = 0
-    private var sendFlow: UInt32 = 0
-    private var flowRate: (downloadRate: UInt32, uploadRate: UInt32) {
-        let netFlow = netInfo.requestNetFlow()
+    private var receivedFlow: UInt64 = 0
+    private var sendFlow: UInt64 = 0
+    private var flowRate: (downloadRate: UInt64, uploadRate: UInt64) {
+        let netFlow = NetInfo.requestNetFlow()
         defer {
             receivedFlow = netFlow.totalReceived
             sendFlow = netFlow.totalSend
@@ -35,7 +34,7 @@ class PerformMonitor {
     }
     /// 初始化
     init() {
-        let netFlow = netInfo.requestNetFlow()
+        let netFlow = NetInfo.requestNetFlow()
         receivedFlow = netFlow.totalReceived
         sendFlow = netFlow.totalSend
     }
@@ -66,7 +65,7 @@ class PerformMonitor {
         let cpu: Float = Float(cpuInfo.used)
         let memory: Float = Float(memoryInfo.getMemory())
         let rate = flowRate
-        updateBlock(cpu, memory, rate.downloadRate, rate.uploadRate)
+        updateBlock(cpu, Float(JYDeviceInfo.footprintMemory() >> 20), rate.downloadRate, rate.uploadRate)
     }
     
 }

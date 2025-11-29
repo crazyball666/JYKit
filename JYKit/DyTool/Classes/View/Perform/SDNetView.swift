@@ -11,11 +11,11 @@ class SDNetView: SDPerformGridView {
         self.init(title: "网速", desc: "")
     }
     
-    func updateFlow(download: UInt32, upload: UInt32) {
+    func updateFlow(download: UInt64, upload: UInt64) {
         descLabel.text = "↓ \(judgeUnit(download))\n↑ \(judgeUnit(upload))"
     }
     
-    private func judgeUnit(_ bytes: UInt32) -> String {
+    private func judgeUnit(_ bytes: UInt64) -> String {
         let speed = Double(bytes)
         if speed < 1024 {
             return String(format: "%.2f B/s", speed)
