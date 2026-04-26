@@ -46,6 +46,7 @@ fileprivate class MainToolVC: DYBaseVC {
         ToolItem(title: "日志查看", selector: #selector(showLogs)),
 //        ToolItem(title: "性能监控", selector: #selector(showPerform)),
         ToolItem(title: "清空KeyChain", selector: #selector(clearKeyChain)),
+        ToolItem(title: "Keychain管理", selector: #selector(showKeychain)),
         ToolItem(title: "清空UserDefault", selector: #selector(clearUserDefault)),
         ToolItem(title: "获取ProcessInfo参数", selector: #selector(getProcessInfo)),
         ToolItem(title: "沙盒文件管理", selector: #selector(goFileManage)),
@@ -86,7 +87,11 @@ extension MainToolVC {
             JYToast.show("已清空KeyChain")
         })
     }
-    
+
+    @objc func showKeychain() {
+        navigationController?.pushViewController(KeychainListVC(), animated: true)
+    }
+
     @objc func clearUserDefault() {
         Tools.showAlert(title: "确认清空 UserDefault？", confirmHandler: {
             Tools.clearAllUserDefault()
