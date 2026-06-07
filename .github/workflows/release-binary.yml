@@ -1,0 +1,180 @@
+name: Release Binary Framework
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish JYKit.xcframework
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION="${TAG_NAME#v}"
+
+          if [[ "${TAG_NAME}" == "${VERSION}" || -z "${VERSION}" ]]; then
+            echo "Release tags must use the v<version> format, for example v0.0.2." >&2
+            exit 1
+          fi
+
+          echo "tag=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install CocoaPods
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo gem install cocoapods -v 1.15.2 -N
+          pod --version
+
+      - name: Install pods
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod install --project-directory=Example
+
+      - name: Build archives
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ARCHIVE_DIR="${RUNNER_TEMP}/JYKitArchives"
+          rm -rf "${ARCHIVE_DIR}"
+          mkdir -p "${ARCHIVE_DIR}"
+
+          xcodebuild archive \
+            -workspace Example/JYKit.xcworkspace \
+            -scheme JYKit \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "${ARCHIVE_DIR}/JYKit-iOS" \
+            SKIP_INSTALL=NO \
+            BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+            CODE_SIGNING_ALLOWED=NO
+
+          xcodebuild archive \
+            -workspace Example/JYKit.xcworkspace \
+            -scheme JYKit \
+            -configuration Release \
+            -destination "generic/platform=iOS Simulator" \
+            -archivePath "${ARCHIVE_DIR}/JYKit-iOS-Simulator" \
+            SKIP_INSTALL=NO \
+            BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create XCFramework
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ARCHIVE_DIR="${RUNNER_TEMP}/JYKitArchives"
+          PRODUCT_DIR="${RUNNER_TEMP}/JYKitRelease"
+          rm -rf "${PRODUCT_DIR}"
+          mkdir -p "${PRODUCT_DIR}"
+
+          xcodebuild -create-xcframework \
+            -framework "${ARCHIVE_DIR}/JYKit-iOS.xcarchive/Products/Library/Frameworks/JYKit.framework" \
+            -framework "${ARCHIVE_DIR}/JYKit-iOS-Simulator.xcarchive/Products/Library/Frameworks/JYKit.framework" \
+            -output "${PRODUCT_DIR}/JYKit.xcframework"
+
+          RESOURCE_COUNT="$(
+            find "${PRODUCT_DIR}/JYKit.xcframework" \
+              -path "*/JYKit.framework/SDKImages.bundle" \
+              -type d \
+              | wc -l \
+              | tr -d ' '
+          )"
+
+          if [[ "${RESOURCE_COUNT}" -lt 2 ]]; then
+            echo "Expected SDKImages.bundle in both iOS and simulator framework slices." >&2
+            exit 1
+          fi
+
+      - name: Package release assets
+        id: package
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          PRODUCT_DIR="${RUNNER_TEMP}/JYKitRelease"
+          ZIP_PATH="${PRODUCT_DIR}/JYKit.xcframework.zip"
+          PODSPEC_PATH="${PRODUCT_DIR}/JYKitBinary.podspec"
+          NOTES_PATH="${PRODUCT_DIR}/release-notes.md"
+
+          (
+            cd "${PRODUCT_DIR}"
+            zip -qry "${ZIP_PATH}" JYKit.xcframework
+          )
+
+          SHA256="$(shasum -a 256 "${ZIP_PATH}" | awk '{print $1}')"
+          VERSION="${VERSION}" SHA256="${SHA256}" PODSPEC_PATH="${PODSPEC_PATH}" ruby <<'RUBY'
+          version = ENV.fetch('VERSION')
+          sha256 = ENV.fetch('SHA256')
+          output = ENV.fetch('PODSPEC_PATH')
+
+          podspec = File.read('JYKitBinary.podspec')
+          podspec.sub!(/s\.version\s+=\s+['"][^'"]+['"]/, "s.version          = '#{version}'")
+          podspec.sub!(
+            /s\.source\s+=\s+\{\s*:http\s+=>\s+"([^"]+)"\s*\}/m,
+            "s.source           = { :http => \"\\1\", :sha256 => '#{sha256}' }"
+          )
+          File.write(output, podspec)
+          RUBY
+
+          cat > "${NOTES_PATH}" <<EOF
+          Binary release for JYKit ${VERSION}.
+
+          CocoaPods:
+
+          \`\`\`ruby
+          pod 'JYKitBinary', :podspec => 'https://github.com/crazyball666/JYKit/releases/download/v${VERSION}/JYKitBinary.podspec'
+          \`\`\`
+
+          The Swift/Objective-C module name remains JYKit.
+          EOF
+
+          echo "zip_path=${ZIP_PATH}" >> "${GITHUB_OUTPUT}"
+          echo "podspec_path=${PODSPEC_PATH}" >> "${GITHUB_OUTPUT}"
+          echo "notes_path=${NOTES_PATH}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ZIP_PATH: ${{ steps.package.outputs.zip_path }}
+          PODSPEC_PATH: ${{ steps.package.outputs.podspec_path }}
+          NOTES_PATH: ${{ steps.package.outputs.notes_path }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            gh release upload "${TAG_NAME}" "${ZIP_PATH}" "${PODSPEC_PATH}" --clobber
+            gh release edit "${TAG_NAME}" \
+              --title "JYKit ${VERSION}" \
+              --notes-file "${NOTES_PATH}"
+          else
+            gh release create "${TAG_NAME}" \
+              "${ZIP_PATH}" \
+              "${PODSPEC_PATH}" \
+              --title "JYKit ${VERSION}" \
+              --notes-file "${NOTES_PATH}" \
+              --latest
+          fi
