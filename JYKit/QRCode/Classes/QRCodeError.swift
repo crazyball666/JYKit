@@ -11,6 +11,7 @@ public enum QRCodeError: Error, Equatable {
     case inputFailed
     case outputFailed
     case emptyResult
+    case cameraPermissionDenied
 }
 
 extension QRCodeError: CustomStringConvertible, LocalizedError {
@@ -22,6 +23,8 @@ extension QRCodeError: CustomStringConvertible, LocalizedError {
             return NSLocalizedString("Failed to add output.", comment: "Failed to add output.")
         case .emptyResult:
             return NSLocalizedString("Empty string found", comment: "Empty string found.")
+        case .cameraPermissionDenied:
+            return NSLocalizedString("Camera permission denied.", comment: "Camera permission denied.")
         }
     }
 

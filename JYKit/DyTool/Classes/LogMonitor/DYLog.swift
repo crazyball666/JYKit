@@ -19,6 +19,7 @@ import Foundation
     private let maxCacheInterval: TimeInterval = 15 // 最长缓存时间，单位为秒
     private var cache: [String] = [] // 缓存日志信息的数组
     private var lastFlushTime: Date = Date() // 上一次写入到文件的时间
+    private var flushTimer: DispatchSourceTimer?
     
     
     private override init() {
@@ -38,6 +39,7 @@ import Foundation
     }
     
     private func startFlushTimer() {
+        guard flushTimer == nil else { return }
         let timer = DispatchSource.makeTimerSource(flags: [], queue: queue)
         timer.schedule(deadline: .now(), repeating: .seconds(3))
         timer.setEventHandler { [weak self] in
@@ -45,6 +47,7 @@ import Foundation
             self.flushCache()
         }
         timer.resume()
+        flushTimer = timer
     }
     
     private func flushCache() {
@@ -62,6 +65,15 @@ import Foundation
     
     func getStdLog() -> String {
         return (try? String(contentsOfFile: logFilePath)) ?? ""
+    }
+
+    func clear() {
+        queue.sync {
+            cache.removeAll()
+            fileHandle.truncateFile(atOffset: 0)
+            fileHandle.seekToEndOfFile()
+            lastFlushTime = Date()
+        }
     }
     
     

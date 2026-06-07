@@ -16,6 +16,10 @@
 
 #import "JYDeviceInfo.h"
 
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/mount.h>
 #include <mach/mach_error.h>
@@ -34,6 +38,9 @@
 #endif
 
 #define kIPadSystemNamePrefix @"iPad "
+
+@implementation JYNetworkFlowInfo
+@end
 
 @implementation JYDeviceInfo
 + (NSString *)getSysInfoByName:(char *)typeSpeifier {
@@ -151,8 +158,8 @@
 
 + (float)appCpuUsage {
     const task_t thisTask = mach_task_self();
-    thread_array_t thread_list;
-    mach_msg_type_number_t thread_count;
+    thread_array_t thread_list = NULL;
+    mach_msg_type_number_t thread_count = 0;
     kern_return_t kr = task_threads(thisTask, &thread_list, &thread_count);
     if (kr != KERN_SUCCESS) {
         return -1;
@@ -280,6 +287,37 @@ cleanup:
     }
 
     return (uint64_t)vm_page_size * (vmStats.free_count + vmStats.inactive_count);
+}
+
++ (JYNetworkFlowInfo *)networkFlowInfo {
+    JYNetworkFlowInfo *flowInfo = [JYNetworkFlowInfo new];
+    struct ifaddrs *interfaces = NULL;
+
+    if (getifaddrs(&interfaces) != 0) {
+        return flowInfo;
+    }
+
+    for (struct ifaddrs *cursor = interfaces; cursor != NULL; cursor = cursor->ifa_next) {
+        if (cursor->ifa_addr == NULL || cursor->ifa_data == NULL) {
+            continue;
+        }
+
+        if (cursor->ifa_addr->sa_family != AF_LINK) {
+            continue;
+        }
+
+        unsigned int flags = cursor->ifa_flags;
+        if ((flags & IFF_UP) == 0 || (flags & IFF_RUNNING) == 0 || (flags & IFF_LOOPBACK) != 0) {
+            continue;
+        }
+
+        const struct if_data *interfaceData = (const struct if_data *)cursor->ifa_data;
+        flowInfo.totalReceivedBytes += interfaceData->ifi_ibytes;
+        flowInfo.totalSentBytes += interfaceData->ifi_obytes;
+    }
+
+    freeifaddrs(interfaces);
+    return flowInfo;
 }
 
 @end

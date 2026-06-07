@@ -32,7 +32,6 @@ class KeychainListVC: DYBaseVC {
 
         tableView.frame = view.bounds
         tableView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellIdentifier)
         tableView.dataSource = self
         tableView.delegate = self
         tableView.estimatedRowHeight = 60
@@ -70,11 +69,14 @@ extension KeychainListVC: UITableViewDataSource, UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: cellIdentifier, for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: cellIdentifier)
+            ?? UITableViewCell(style: .subtitle, reuseIdentifier: cellIdentifier)
         let item = items[indexPath.row]
 
         cell.textLabel?.text = item.key
         cell.detailTextLabel?.text = "\(item.type.rawValue): \(previewValue(item))"
+        cell.detailTextLabel?.textColor = .gray
+        cell.detailTextLabel?.numberOfLines = 2
 
         return cell
     }
@@ -93,7 +95,7 @@ extension KeychainListVC: UITableViewDataSource, UITableViewDelegate {
         let deleteAction = UIContextualAction(style: .destructive, title: "删除") { [weak self] _, _, completion in
             guard let self = self else { return }
             let item = self.items[indexPath.row]
-            if KeychainManager.delete(key: item.key) {
+            if KeychainManager.delete(item: item) {
                 self.items.remove(at: indexPath.row)
                 tableView.deleteRows(at: [indexPath], with: .automatic)
             }

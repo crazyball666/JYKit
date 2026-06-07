@@ -161,7 +161,11 @@ extension DirectoryManageVC: UITableViewDataSource, UITableViewDelegate {
         } else {
             let sheet = UIAlertController(title: "操作", message: model.path, preferredStyle: .actionSheet)
             sheet.addAction(UIAlertAction(title: "查看", style: .default, handler: { _ in
-                self.navigationController?.pushViewController(FileContentVC(path: model.path), animated: true)
+                if ["db", "sqlite", "sqlite3"].contains((model.path as NSString).pathExtension.lowercased()) {
+                    self.navigationController?.pushViewController(SQLiteBrowserVC(path: model.path), animated: true)
+                } else {
+                    self.navigationController?.pushViewController(FileContentVC(path: model.path), animated: true)
+                }
             }))
             sheet.addAction(UIAlertAction(title: "导出", style: .default, handler: { _ in
                 let filePath = URL(fileURLWithPath: model.path)

@@ -143,16 +143,9 @@ class PHPhotoPicker: NSObject {
         self.delegate = delegate
     }
     
-    /// Requests authorization to access the photo library and presents the Photos UI picker if authorized.
+    /// Presents the Photos UI picker. PHPicker handles limited photo access without a separate authorization request.
     public func present() {
-        PHPhotoLibrary.requestAuthorization({ (newStatus) in
-            DispatchQueue.main.async {
-                if newStatus ==  PHAuthorizationStatus.authorized {
-                    self.presentationController?.present(self.pickerController,
-                                                         animated: true)
-                }
-            }
-        })
+        presentationController?.present(pickerController, animated: true)
     }
 }
 

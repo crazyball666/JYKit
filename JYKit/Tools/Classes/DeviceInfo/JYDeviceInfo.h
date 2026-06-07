@@ -16,6 +16,14 @@
 
 #import <Foundation/Foundation.h>
 
+/// 网络累计流量信息，单位 bytes。
+@interface JYNetworkFlowInfo : NSObject
+
+@property (nonatomic, assign) uint64_t totalReceivedBytes;
+@property (nonatomic, assign) uint64_t totalSentBytes;
+
+@end
+
 /// 设备信息
 @interface JYDeviceInfo : NSObject
 
@@ -75,5 +83,8 @@
 
 /// 进程剩余可用的内存量（bytes），来源：os_proc_available_memory
 + (uint64_t)availableMemory;
+
+/// 当前网络接口累计收发流量（bytes），排除 loopback。
++ (nonnull JYNetworkFlowInfo *)networkFlowInfo;
 
 @end

@@ -226,7 +226,14 @@ class KeychainEditVC: DYBaseVC {
             value = Data(hexString: valueString) ?? Data()
         }
 
-        if KeychainManager.save(key: key, value: value, type: type) {
+        let didSave: Bool
+        if let item = item {
+            didSave = KeychainManager.save(key: key, value: value, type: type, service: item.service)
+        } else {
+            didSave = KeychainManager.save(key: key, value: value, type: type)
+        }
+
+        if didSave {
             onSave?()
             navigationController?.popViewController(animated: true)
         } else {
@@ -235,9 +242,9 @@ class KeychainEditVC: DYBaseVC {
     }
 
     @objc private func deleteItem() {
-        guard let key = item?.key else { return }
+        guard let item = item else { return }
         Tools.showAlert(title: "确认删除？", confirmHandler: { [weak self] in
-            if KeychainManager.delete(key: key) {
+            if KeychainManager.delete(item: item) {
                 self?.onSave?()
                 self?.navigationController?.popViewController(animated: true)
             }

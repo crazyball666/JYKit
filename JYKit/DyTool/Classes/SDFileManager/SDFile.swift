@@ -59,7 +59,7 @@ struct SDFile: SDFileProtocal {
             } else {
                 // Fallback on earlier versions
                 fileHandle?.seekToEndOfFile()
-                fileHandle?.write(data)
+                fileHandle?.write(newData)
             }
             data.append(newData)
             appendData = nil

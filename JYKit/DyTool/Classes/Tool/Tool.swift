@@ -61,9 +61,6 @@ struct Tools {
            }
        }
 
-       let appDomain = Bundle.main.bundleIdentifier
-       UserDefaults.standard.removePersistentDomain(forName: appDomain ?? "")
-       UserDefaults.standard.synchronize()
    }
     
     /// 清空 UD

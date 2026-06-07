@@ -24,8 +24,8 @@ Pod::Spec.new do |s|
   
   # 调试工具
   s.subspec 'DyTool' do |ss|
-      ss.source_files = 'JYKit/DYTool/Classes/**/*.{h,m,swift}'
-      ss.resources = 'JYKit/DYTool/Assets/SDKImages.bundle'
+      ss.source_files = 'JYKit/DyTool/Classes/**/*.{h,m,swift}'
+      ss.resources = 'JYKit/DyTool/Assets/SDKImages.bundle'
       ss.dependency 'JYKit/Tools'
       ss.dependency 'JYKit/HUD'
   end

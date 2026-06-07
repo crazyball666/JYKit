@@ -140,7 +140,7 @@ class DYFloatingView: UIView {
                 status = .top
             } else {
                 closeCenter.y = superviewFrame.height - safeAreaInsets.bottom - self.frame.height / 2
-                status = .right
+                status = .bottom
             }
         }
         UIView.animate(withDuration: 0.25) { [weak self] in
