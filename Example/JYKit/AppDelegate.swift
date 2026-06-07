@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import JYKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -20,6 +21,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.rootViewController = MainVC()
         window?.makeKeyAndVisible()
+        
+        print(JYDeviceInfo.cpuCount(), JYDeviceInfo.cpuUsage(), ProcessInfo.processInfo.physicalMemory >> 30, JYDeviceInfo.physicalMemory() >> 20, JYDeviceInfo.footprintMemory() >> 20, JYDeviceInfo.availableMemory())
+        
         
         return true
     }

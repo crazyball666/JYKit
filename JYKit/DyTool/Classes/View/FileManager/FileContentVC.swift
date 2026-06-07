@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import SQLite3
+import UIKit
 
 protocol IFileContentHandler {
     var path: String { get }
@@ -54,6 +56,27 @@ struct TextContentHandler: IFileContentHandler {
     }
 }
 
+/// JSON 处理器
+struct JSONContentHandler: IFileContentHandler {
+    var path: String
+
+    func getContent() throws -> String {
+        let data = try Data(contentsOf: URL(fileURLWithPath: path))
+        let object = try JSONSerialization.jsonObject(with: data, options: [])
+        let prettyData = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+        return String(data: prettyData, encoding: .utf8) ?? ""
+    }
+
+    func saveContent(content: String) throws {
+        guard let data = content.data(using: .utf8) else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "string convert to data error"])
+        }
+        let object = try JSONSerialization.jsonObject(with: data, options: [])
+        let prettyData = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+        try prettyData.write(to: URL(fileURLWithPath: path))
+    }
+}
+
 
 class FileContentVC: UIViewController {
     let path: String
@@ -71,6 +94,8 @@ class FileContentVC: UIViewController {
         switch pathExtension {
         case "plist":
             return PlistContentHandler(path: path)
+        case "json":
+            return JSONContentHandler(path: path)
         default:
             return TextContentHandler(path: path)
         }
@@ -132,4 +157,152 @@ class FileContentVC: UIViewController {
     }
 }
 
+class SQLiteBrowserVC: UIViewController {
+    private let path: String
+    private let tableView = UITableView()
+    private var tables: [String] = []
 
+    init(path: String) {
+        self.path = path
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .white
+        navigationItem.title = (path as NSString).lastPathComponent
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "SQLiteTableCell")
+        tableView.dataSource = self
+        tableView.delegate = self
+        view.addSubview(tableView)
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.leftAnchor.constraint(equalTo: view.leftAnchor),
+            tableView.rightAnchor.constraint(equalTo: view.rightAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        loadTables()
+    }
+
+    private func loadTables() {
+        tables = SQLiteReader(path: path).tables()
+        tableView.reloadData()
+    }
+}
+
+extension SQLiteBrowserVC: UITableViewDataSource, UITableViewDelegate {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return tables.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "SQLiteTableCell", for: indexPath)
+        cell.textLabel?.text = tables[indexPath.row]
+        cell.accessoryType = .disclosureIndicator
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        navigationController?.pushViewController(SQLiteTableDataVC(path: path, tableName: tables[indexPath.row]), animated: true)
+    }
+}
+
+private class SQLiteTableDataVC: UIViewController {
+    private let path: String
+    private let tableName: String
+    private let textView = UITextView()
+
+    init(path: String, tableName: String) {
+        self.path = path
+        self.tableName = tableName
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        navigationItem.title = tableName
+        textView.backgroundColor = .black
+        textView.textColor = .white
+        textView.font = UIFont(name: "Menlo", size: 12) ?? .systemFont(ofSize: 12)
+        textView.isEditable = false
+        view.addSubview(textView)
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            textView.topAnchor.constraint(equalTo: view.topAnchor),
+            textView.leftAnchor.constraint(equalTo: view.leftAnchor),
+            textView.rightAnchor.constraint(equalTo: view.rightAnchor),
+            textView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        textView.text = SQLiteReader(path: path).preview(tableName: tableName, limit: 100)
+    }
+}
+
+private final class SQLiteReader {
+    let path: String
+
+    init(path: String) {
+        self.path = path
+    }
+
+    func tables() -> [String] {
+        query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name") { statement in
+            guard let text = sqlite3_column_text(statement, 0) else { return nil }
+            return String(cString: text)
+        }
+    }
+
+    func preview(tableName: String, limit: Int) -> String {
+        let escapedName = tableName.replacingOccurrences(of: "\"", with: "\"\"")
+        let rows = query("SELECT * FROM \"\(escapedName)\" LIMIT \(limit)") { statement -> String? in
+            let columnCount = sqlite3_column_count(statement)
+            var values: [String] = []
+            for index in 0..<columnCount {
+                let name = sqlite3_column_name(statement, index).map { String(cString: $0) } ?? "\(index)"
+                let value: String
+                switch sqlite3_column_type(statement, index) {
+                case SQLITE_NULL:
+                    value = "NULL"
+                case SQLITE_INTEGER:
+                    value = "\(sqlite3_column_int64(statement, index))"
+                case SQLITE_FLOAT:
+                    value = "\(sqlite3_column_double(statement, index))"
+                case SQLITE_BLOB:
+                    value = "BLOB(\(sqlite3_column_bytes(statement, index)) bytes)"
+                default:
+                    value = sqlite3_column_text(statement, index).map { String(cString: $0) } ?? ""
+                }
+                values.append("\(name)=\(value)")
+            }
+            return values.joined(separator: " | ")
+        }
+        return rows.isEmpty ? "暂无数据" : rows.enumerated().map { "#\($0.offset + 1) \($0.element)" }.joined(separator: "\n\n")
+    }
+
+    private func query<T>(_ sql: String, map: (OpaquePointer?) -> T?) -> [T] {
+        var db: OpaquePointer?
+        guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let db = db else {
+            return []
+        }
+        defer { sqlite3_close(db) }
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            return []
+        }
+        defer { sqlite3_finalize(statement) }
+
+        var result: [T] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let value = map(statement) {
+                result.append(value)
+            }
+        }
+        return result
+    }
+}

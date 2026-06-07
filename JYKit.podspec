@@ -11,15 +11,7 @@ Pod::Spec.new do |s|
   s.version          = '0.0.1'
   s.summary          = 'A short description of JYKit.'
 
-# This description is used to generate tags and improve search results.
-#   * Think: What does it do? Why did you write it? What is the focus?
-#   * Try to keep it short, snappy and to the point.
-#   * Write the description between the DESC delimiters below.
-#   * Finally, don't worry about the indent, CocoaPods strips it!
-
-  s.description      = <<-DESC
-TODO: Add long description of the pod here.
-                       DESC
+  s.description      = "工具库"
 
   s.homepage         = 'https://github.com/crazyball/JYKit'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
@@ -29,21 +21,26 @@ TODO: Add long description of the pod here.
   s.ios.deployment_target = '11.0'
   s.swift_version = ['5.0']
   
+  
+  # 调试工具
   s.subspec 'DyTool' do |ss|
-      ss.source_files = 'JYKit/DYTool/Classes/**/*.{h,m,swift}'
-      ss.resources = 'JYKit/DYTool/Assets/SDKImages.bundle'
+      ss.source_files = 'JYKit/DyTool/Classes/**/*.{h,m,swift}'
+      ss.resources = 'JYKit/DyTool/Assets/SDKImages.bundle'
       ss.dependency 'JYKit/Tools'
       ss.dependency 'JYKit/HUD'
   end
   
+  # Toast
   s.subspec 'HUD' do |ss|
       ss.source_files = 'JYKit/HUD/Classes/**/*'
   end
   
+  # 扫码
   s.subspec 'QRCode' do |ss|
       ss.source_files = 'JYKit/QRCode/Classes/**/*'
   end
   
+  # 工具库
   s.subspec 'Tools' do |ss|
       ss.source_files = 'JYKit/Tools/Classes/**/*'
   end

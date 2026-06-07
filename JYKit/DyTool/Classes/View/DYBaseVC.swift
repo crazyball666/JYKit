@@ -16,6 +16,6 @@ class DYBaseVC: UIViewController {
     }
     
     @objc func close() {
-        MainToolVC.shared.dismiss(animated: true)
+        DYMainVC.shared.dismiss()
     }
 }

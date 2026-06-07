@@ -27,6 +27,7 @@ public class QRCodeScannerController: UIViewController,
     
     // Button for toggling the flash
     private var flashButton: UIButton?
+    private var cameraSwitchButton: UIButton?
     
     // Default Properties
     private let spaceFactor: CGFloat = 16.0 // Spacing factor for layout
@@ -91,6 +92,7 @@ public class QRCodeScannerController: UIViewController,
     
     private let dataOutput = AVCaptureMetadataOutput() // Output for capturing metadata (e.g., QR codes)
     private let captureSession = AVCaptureSession() // Capture session for video capture
+    private let sessionQueue = DispatchQueue(label: "com.jykit.qrcode.session")
     
     // Initialise videoPreviewLayer with capture session
     private lazy var videoPreviewLayer: AVCaptureVideoPreviewLayer = {
@@ -138,13 +140,19 @@ public class QRCodeScannerController: UIViewController,
         // Currently, only "Portrait" mode is supported
         setDeviceOrientation()
         _delayCount = 0
-        prepareQRScannerView()
-        startScanningQRCode()
+        requestCameraAccessAndStart()
     }
     
     override public func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         addButtons()
+    }
+
+    override public func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if isBeingDismissed || navigationController?.isBeingDismissed == true {
+            stopScanningQRCode()
+        }
     }
     
     private func configureNavigationBar() {
@@ -267,7 +275,7 @@ public class QRCodeScannerController: UIViewController,
      */
     private func addButtons() {
         // Torch Button
-        if let flashOffImage = qrScannerConfiguration.flashOnImage {
+        if flashButton == nil, let flashOffImage = qrScannerConfiguration.flashOnImage {
             let flashButton = RoundButton(frame: CGRect(x: 32,
                                                         y: view.frame.height - 100,
                                                         width: roundButtonWidth,
@@ -279,7 +287,7 @@ public class QRCodeScannerController: UIViewController,
         }
         
         // Camera Switch Button
-        if let cameraImage = qrScannerConfiguration.cameraImage {
+        if cameraSwitchButton == nil, let cameraImage = qrScannerConfiguration.cameraImage {
             let cameraSwitchButton = RoundButton(frame: CGRect(x: view.bounds.width - (roundButtonWidth + 32),
                                                                y: view.frame.height - 100,
                                                                width: roundButtonWidth,
@@ -287,6 +295,7 @@ public class QRCodeScannerController: UIViewController,
             cameraSwitchButton.setImage(cameraImage, for: .normal)
             cameraSwitchButton.addTarget(self, action: #selector(switchCamera), for: .touchUpInside)
             view.addSubview(cameraSwitchButton)
+            self.cameraSwitchButton = cameraSwitchButton
         }
     }
     
@@ -317,15 +326,26 @@ public class QRCodeScannerController: UIViewController,
      Switches between the front and rear cameras.
      */
     @objc private func switchCamera() {
-        if let frontDeviceInput = frontCaptureInput {
-            captureSession.beginConfiguration()
-            if let currentInput = getCurrentInput() {
-                captureSession.removeInput(currentInput)
-                let newDeviceInput = (currentInput.device.position == .front) ? defaultCaptureInput : frontDeviceInput
-                captureSession.addInput(newDeviceInput!)
-            }
-            captureSession.commitConfiguration()
+        guard let frontDeviceInput = frontCaptureInput,
+              let currentInput = getCurrentInput() else {
+            return
         }
+
+        guard let newDeviceInput = (currentInput.device.position == .front) ? defaultCaptureInput : frontDeviceInput else {
+            return
+        }
+
+        captureSession.beginConfiguration()
+        captureSession.removeInput(currentInput)
+        if captureSession.canAddInput(newDeviceInput) {
+            captureSession.addInput(newDeviceInput)
+        } else {
+            if captureSession.canAddInput(currentInput) {
+                captureSession.addInput(currentInput)
+            }
+            delegate?.qrScanner(self, didFailWithError: .inputFailed)
+        }
+        captureSession.commitConfiguration()
     }
     
     /// Gets the current camera input from the capture session.
@@ -335,10 +355,38 @@ public class QRCodeScannerController: UIViewController,
         }
         return nil
     }
+
+    private func requestCameraAccessAndStart() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            prepareQRScannerView()
+            startScanningQRCode()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    if granted {
+                        self.prepareQRScannerView()
+                        self.startScanningQRCode()
+                    } else {
+                        self.delegate?.qrScanner(self, didFailWithError: .cameraPermissionDenied)
+                        self.dismiss(animated: true, completion: nil)
+                    }
+                }
+            }
+        case .denied, .restricted:
+            delegate?.qrScanner(self, didFailWithError: .cameraPermissionDenied)
+            dismiss(animated: true, completion: nil)
+        @unknown default:
+            delegate?.qrScanner(self, didFailWithError: .cameraPermissionDenied)
+            dismiss(animated: true, completion: nil)
+        }
+    }
     
     // MARK: - Dismissal
     
     @objc private func dismissViewController() {
+        stopScanningQRCode()
         self.dismiss(animated: true, completion: nil)
         delegate?.qrScannerDidCancel(self)
     }
@@ -352,8 +400,16 @@ public class QRCodeScannerController: UIViewController,
      */
     private func startScanningQRCode() {
         if captureSession.isRunning { return }
-        DispatchQueue.global(qos: .background).async {
+        sessionQueue.async {
             self.captureSession.startRunning()
+        }
+    }
+
+    private func stopScanningQRCode() {
+        sessionQueue.async {
+            if self.captureSession.isRunning {
+                self.captureSession.stopRunning()
+            }
         }
     }
     
@@ -436,7 +492,7 @@ extension QRCodeScannerController: AVCaptureMetadataOutputObjectsDelegate {
                     } else {
                         delegate?.qrScanner(self, didFailWithError: .emptyResult)
                     }
-                    captureSession.stopRunning()
+                    stopScanningQRCode()
                     self.dismiss(animated: true, completion: nil)
                 }
             }
@@ -451,6 +507,7 @@ extension QRCodeScannerController: UIAdaptivePresentationControllerDelegate {
     ///
     /// - Parameter presentationController: The presentation controller that was dismissed.
     public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        stopScanningQRCode()
         self.delegate?.qrScannerDidCancel(self)
     }
 }
@@ -468,6 +525,7 @@ extension QRCodeScannerController: ImagePickerDelegate {
                 return
             }
             self.delegate?.qrScanner(self, didScanQRCodeWithResult: qrCodeData)
+            stopScanningQRCode()
             self.dismiss(animated: true)
         } else {
             showInvalidQRCodeAlert()

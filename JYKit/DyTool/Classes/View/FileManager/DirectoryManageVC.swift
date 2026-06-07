@@ -18,6 +18,51 @@ struct FileInfo {
 
 
 
+class FileItemCell: UITableViewCell {
+    let iconView = UIImageView()
+    let nameLabel = UILabel()
+    let sizeLabel = UILabel()
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupViews()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupViews() {
+        iconView.contentMode = .scaleAspectFit
+        nameLabel.font = .systemFont(ofSize: 16)
+        sizeLabel.font = .systemFont(ofSize: 12)
+        sizeLabel.textColor = UIColor(red: 0.58, green: 0.58, blue: 0.58, alpha: 1)
+
+        contentView.addSubview(iconView)
+        contentView.addSubview(nameLabel)
+        contentView.addSubview(sizeLabel)
+
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        sizeLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        NSLayoutConstraint.activate([
+            iconView.leftAnchor.constraint(equalTo: contentView.leftAnchor, constant: 16),
+            iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 26),
+            iconView.heightAnchor.constraint(equalToConstant: 26),
+
+            nameLabel.leftAnchor.constraint(equalTo: iconView.rightAnchor, constant: 12),
+            nameLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            nameLabel.rightAnchor.constraint(equalTo: contentView.rightAnchor, constant: -16),
+
+            sizeLabel.leftAnchor.constraint(equalTo: nameLabel.leftAnchor),
+            sizeLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 2),
+            sizeLabel.rightAnchor.constraint(equalTo: contentView.rightAnchor, constant: -16),
+        ])
+    }
+}
+
 class DirectoryManageVC: UIViewController {
     var path: String
     
@@ -69,7 +114,7 @@ class DirectoryManageVC: UIViewController {
     func setupUI() {
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "FileItemCell")
+        tableView.register(FileItemCell.self, forCellReuseIdentifier: "FileItemCell")
         
         view.addSubview(tableView)
         tableView.translatesAutoresizingMaskIntoConstraints = false
@@ -86,15 +131,26 @@ extension DirectoryManageVC: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "FileItemCell", for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: "FileItemCell", for: indexPath) as! FileItemCell
         let model = contents[indexPath.row]
-        cell.textLabel?.text = model.name
-        cell.imageView?.image = model.isDirectory ? directoryIcon : fileIcon
+        cell.nameLabel.text = model.name
+        cell.iconView.image = model.isDirectory ? directoryIcon : fileIcon
+        cell.sizeLabel.text = formatSize(model.size)
         return cell
     }
-    
+
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 40
+        return 50
+    }
+
+    private func formatSize(_ size: Int) -> String {
+        let kb = Double(size) / 1024
+        if kb < 1 { return "\(size) B" }
+        let mb = kb / 1024
+        if mb < 1 { return String(format: "%.1f KB", kb) }
+        let gb = mb / 1024
+        if gb < 1 { return String(format: "%.1f MB", mb) }
+        return String(format: "%.2f GB", gb)
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -105,7 +161,11 @@ extension DirectoryManageVC: UITableViewDataSource, UITableViewDelegate {
         } else {
             let sheet = UIAlertController(title: "操作", message: model.path, preferredStyle: .actionSheet)
             sheet.addAction(UIAlertAction(title: "查看", style: .default, handler: { _ in
-                self.navigationController?.pushViewController(FileContentVC(path: model.path), animated: true)
+                if ["db", "sqlite", "sqlite3"].contains((model.path as NSString).pathExtension.lowercased()) {
+                    self.navigationController?.pushViewController(SQLiteBrowserVC(path: model.path), animated: true)
+                } else {
+                    self.navigationController?.pushViewController(FileContentVC(path: model.path), animated: true)
+                }
             }))
             sheet.addAction(UIAlertAction(title: "导出", style: .default, handler: { _ in
                 let filePath = URL(fileURLWithPath: model.path)
