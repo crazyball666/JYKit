@@ -13,11 +13,24 @@ To run the example project, clone the repo, and run `pod install` from the Examp
 
 ## Installation
 
-JYKit is available through [CocoaPods](https://cocoapods.org). To install
-it, simply add the following line to your Podfile:
+JYKit can be integrated through [CocoaPods](https://cocoapods.org).
+
+Source pod:
 
 ```ruby
 pod 'JYKit'
+```
+
+Binary release pod:
+
+```ruby
+pod 'JYKitBinary', :podspec => 'https://github.com/crazyball666/JYKit/releases/download/v0.0.2/JYKitBinary.podspec'
+```
+
+The binary pod contains `JYKit.xcframework`. The module name is still `JYKit`, so Swift code should continue to use:
+
+```swift
+import JYKit
 ```
 
 ## Author
