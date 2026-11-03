@@ -52,6 +52,7 @@ class DYFloatingView: UIView {
     
     func install() {
         if self.superview == nil {
+            DYFMainWindow.shared.attachToActiveSceneIfNeeded()
             DYFMainWindow.shared.addSubview(self)
             
             if tapGestureRecognizer == nil {
