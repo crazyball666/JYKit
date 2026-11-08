@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.author           = { 'crazyball' => 'crazyball6666@gmail.com' }
   s.source           = { :http => "https://github.com/crazyball666/JYKit/releases/download/v#{s.version}/JYKit.xcframework.zip" }
 
-  s.ios.deployment_target = '13.0'
+  s.ios.deployment_target = '15.0'
   s.swift_version = '5.0'
   s.vendored_frameworks = 'JYKit.xcframework'
 end
