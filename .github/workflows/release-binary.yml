@@ -169,7 +169,9 @@ jobs:
             gh release upload "${TAG_NAME}" "${ZIP_PATH}" "${PODSPEC_PATH}" --clobber
             gh release edit "${TAG_NAME}" \
               --title "JYKit ${VERSION}" \
-              --notes-file "${NOTES_PATH}"
+              --notes-file "${NOTES_PATH}" \
+              --latest \
+              --draft=false
           else
             gh release create "${TAG_NAME}" \
               "${ZIP_PATH}" \
