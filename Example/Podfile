@@ -9,10 +9,13 @@ target 'JYKit_Example' do
 end
 
 post_install do |installer|
+  # 新版 Xcode 的模拟器运行时不再支持 < 15 的部署版本，
+  # 本地把 Pods 目标抬到 15 以保证 demo 能跑起来。
+  # CI 构建二进制产物时需要保持 podspec 声明的最低版本（13.0），因此跳过。
+  next if ENV['CI']
+
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      # 新版 Xcode 的模拟器运行时不再支持 < 15 的部署版本，
-      # 这里把 Pods 目标统一抬到 15，避免 demo 编译失败。
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
     end
   end
