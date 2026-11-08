@@ -153,6 +153,11 @@ class DYMonitorView: DYFloatingView {
         startTimer()
     }
 
+    override func onTap() {
+        // 点击悬浮监控面板直接打开工具主界面
+        DYMainVC.shared.present()
+    }
+
     override func uninstall() {
         stopTimer()
         super.uninstall()
@@ -173,12 +178,15 @@ private extension DYMonitorView {
         timer?.invalidate()
         sampler.start(options: DYPerformanceSampleOptions(metrics: DYMonitorConfiguration.shared.enabledMetrics))
         updateMetrics()
-        timer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
             guard let self = self else {
                 return
             }
             self.updateMetrics()
         }
+        // 保证滑动等 tracking 模式下监控数据仍在刷新
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     func stopTimer() {

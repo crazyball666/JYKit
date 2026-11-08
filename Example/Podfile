@@ -1,7 +1,19 @@
 use_frameworks!
 
-platform :ios, '13.0'
+# 注意：示例工程使用较新的 Xcode 模拟器运行时（最低支持 iOS 15），
+# 因此 demo 的部署版本高于 JYKit.podspec 声明的 iOS 13（SDK 本身仍支持 13）。
+platform :ios, '15.0'
 
 target 'JYKit_Example' do
   pod 'JYKit', :path => '../'
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # 新版 Xcode 的模拟器运行时不再支持 < 15 的部署版本，
+      # 这里把 Pods 目标统一抬到 15，避免 demo 编译失败。
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
+  end
 end

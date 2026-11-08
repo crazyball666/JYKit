@@ -63,7 +63,7 @@ class FileItemCell: UITableViewCell {
     }
 }
 
-class DirectoryManageVC: UIViewController {
+class DirectoryManageVC: DYBaseVC {
     var path: String
     
     init(path: String) {
@@ -87,16 +87,27 @@ class DirectoryManageVC: UIViewController {
     var fileIcon: UIImage? = {
         return UIImage(inSDK: "file.png")?.toSize(size: CGSize(width: 26, height: 26))
     }()
+
+    private lazy var dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/MM/dd HH:mm"
+        return formatter
+    }()
     
     override func viewDidLoad() {
         navigationItem.title = (self.path as NSString).lastPathComponent
-        loadContents()
         setupUI()
+        loadContents()
     }
-    
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        loadContents()
+    }
+
     func loadContents() {
-        let contents = (try? FileManager.default.contentsOfDirectory(atPath: self.path)) ?? []
-        self.contents = contents.compactMap({ (name) -> FileInfo? in
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: self.path)) ?? []
+        let items: [FileInfo] = names.compactMap({ (name) -> FileInfo? in
             guard let info = try? FileManager.default.attributesOfItem(atPath: self.path + "/" + name) else {
                 return nil
             }
@@ -109,6 +120,13 @@ class DirectoryManageVC: UIViewController {
                 size: info[.size] as? Int ?? 0
             )
         })
+        // 目录优先，其次按名称排序
+        contents = items.sorted { left, right in
+            if left.isDirectory != right.isDirectory {
+                return left.isDirectory
+            }
+            return left.name.localizedCaseInsensitiveCompare(right.name) == .orderedAscending
+        }
     }
     
     func setupUI() {
@@ -135,7 +153,13 @@ extension DirectoryManageVC: UITableViewDataSource, UITableViewDelegate {
         let model = contents[indexPath.row]
         cell.nameLabel.text = model.name
         cell.iconView.image = model.isDirectory ? directoryIcon : fileIcon
-        cell.sizeLabel.text = formatSize(model.size)
+
+        if model.isDirectory {
+            cell.sizeLabel.text = "文件夹"
+        } else {
+            let dateText = model.modificationDate.map { dateFormatter.string(from: $0) } ?? ""
+            cell.sizeLabel.text = dateText.isEmpty ? formatSize(model.size) : "\(formatSize(model.size))  ·  \(dateText)"
+        }
         return cell
     }
 
@@ -168,30 +192,58 @@ extension DirectoryManageVC: UITableViewDataSource, UITableViewDelegate {
                 }
             }))
             sheet.addAction(UIAlertAction(title: "导出", style: .default, handler: { _ in
-                let filePath = URL(fileURLWithPath: model.path)
-                let air = UIActivityViewController(activityItems: [filePath], applicationActivities: nil)
-                if (UIDevice.current.userInterfaceIdiom == .pad) {
-                    air.popoverPresentationController?.sourceView = self.view
-                }
-                self.present(air, animated: true, completion: nil)
+                self.export(model)
             }))
             sheet.addAction(UIAlertAction(title: "复制路径", style: .default, handler: { _ in
                 UIPasteboard.general.string = model.path
+                JYToast.show("已复制路径")
             }))
             sheet.addAction(UIAlertAction(title: "删除", style: .destructive, handler: { _ in
-                Tools.showAlert(title: "确认删除？", confirmHandler: {
-                    do {
-                        try FileManager.default.removeItem(atPath: model.path)
-                        JYToast.show("删除成功")
-                        self.loadContents()
-                    } catch {
-                        JYToast.show("删除失败：" + error.localizedDescription)
-                    }
-                })
+                self.confirmDelete(model)
             }))
             sheet.addAction(UIAlertAction(title: "取消", style: .cancel, handler: nil))
+            // iPad 上 actionSheet 必须指定锚点，否则会崩溃
+            if let popover = sheet.popoverPresentationController {
+                popover.sourceView = tableView
+                popover.sourceRect = tableView.rectForRow(at: indexPath)
+            }
             self.present(sheet, animated: true)
         }
+    }
+
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let model = contents[indexPath.row]
+        let delete = UIContextualAction(style: .destructive, title: "删除") { [weak self] _, _, completion in
+            self?.confirmDelete(model)
+            completion(true)
+        }
+        let share = UIContextualAction(style: .normal, title: "导出") { [weak self] _, _, completion in
+            self?.export(model)
+            completion(true)
+        }
+        share.backgroundColor = .systemBlue
+        return UISwipeActionsConfiguration(actions: [delete, share])
+    }
+
+    private func export(_ model: FileInfo) {
+        let filePath = URL(fileURLWithPath: model.path)
+        let air = UIActivityViewController(activityItems: [filePath], applicationActivities: nil)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            air.popoverPresentationController?.sourceView = view
+        }
+        present(air, animated: true, completion: nil)
+    }
+
+    private func confirmDelete(_ model: FileInfo) {
+        Tools.showAlert(title: "确认删除？", message: model.name, confirmHandler: { [weak self] in
+            do {
+                try FileManager.default.removeItem(atPath: model.path)
+                JYToast.show("删除成功")
+                self?.loadContents()
+            } catch {
+                JYToast.show("删除失败：" + error.localizedDescription)
+            }
+        })
     }
 }
 

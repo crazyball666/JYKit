@@ -8,8 +8,8 @@
 import UIKit
 
 // 悬浮球 Window
-class DYFMainWindow: UIWindow {
-    static let shared = DYFMainWindow(frame: UIScreen.main.bounds)
+class DYMainWindow: UIWindow {
+    static let shared = DYMainWindow(frame: UIScreen.main.bounds)
 
     override init(frame: CGRect) {
         super.init(frame: frame)

@@ -11,29 +11,29 @@ import UIKit
 public struct JYToast {
     private static var containerView: UIView? {
         if #available(iOS 13.0, *) {
-            let frontToBackWindows = UIApplication.shared.connectedScenes
+            let windows = UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
                 .filter { $0.activationState == .foregroundActive }
                 .flatMap { $0.windows }
                 .reversed()
-            for window in frontToBackWindows {
-                if window.screen == UIScreen.main,
-                   !window.isHidden && window.alpha > 0,
-                   window.isKeyWindow {
-                    return window
-                }
+
+            // 优先使用 keyWindow；弹窗（Alert/ActionSheet）场景下退回第一个可见窗口，
+            // 避免 Toast 被加到临时窗口里或直接丢失。
+            if let keyWindow = windows.first(where: { isVisible($0) && $0.isKeyWindow }) {
+                return keyWindow
             }
+            return windows.first(where: { isVisible($0) })
         }
 
-        let frontToBackWindows = UIApplication.shared.windows.reversed()
-        for window in frontToBackWindows {
-            if window.screen == UIScreen.main,
-               !window.isHidden && window.alpha > 0,
-               window.isKeyWindow {
-                return window
-            }
+        let windows = UIApplication.shared.windows.reversed()
+        if let keyWindow = windows.first(where: { isVisible($0) && $0.isKeyWindow }) {
+            return keyWindow
         }
-        return nil
+        return windows.first(where: { isVisible($0) })
+    }
+
+    private static func isVisible(_ window: UIWindow) -> Bool {
+        return !window.isHidden && window.alpha > 0
     }
     
     private static var currentToast: ToastView?

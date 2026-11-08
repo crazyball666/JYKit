@@ -67,6 +67,9 @@ final class DYLagMonitor {
     private var lastActivity: CFRunLoopActivity = []
     private var latestMainStack: [String] = []
     private var lastRecordDate: Date?
+    /// 主线程调用栈采样节流时间，避免每轮 RunLoop 都做一次符号化遍历（开销很大）。
+    private var lastStackSampleTime: CFTimeInterval = 0
+    private let stackSampleInterval: CFTimeInterval = 0.5
 
     private(set) var records: [DYLagRecord] = []
     var onRecordsChanged: (() -> Void)?
@@ -168,11 +171,31 @@ private extension DYLagMonitor {
     }
 
     func recordActivity(_ activity: CFRunLoopActivity) {
+        let now = CACurrentMediaTime()
+
         stateLock.lock()
         lastActivity = activity
-        latestMainStack = Thread.callStackSymbols
+        let shouldSampleStack = isStackSamplePoint(activity) && (now - lastStackSampleTime >= stackSampleInterval)
+        if shouldSampleStack {
+            lastStackSampleTime = now
+        }
         stateLock.unlock()
+
+        // 采样会做符号化，开销较大，因此只在关键节点且按间隔节流后执行，
+        // 避免旧实现「每轮 RunLoop 抓 6 次栈」把主线程拖慢。
+        if shouldSampleStack {
+            let stack = Thread.callStackSymbols
+            stateLock.lock()
+            latestMainStack = stack
+            stateLock.unlock()
+        }
+
         semaphore.signal()
+    }
+
+    /// 合适的采样时机：主线程开始处理 source / 刚从等待中恢复。
+    func isStackSamplePoint(_ activity: CFRunLoopActivity) -> Bool {
+        return activity.contains(.beforeSources) || activity.contains(.afterWaiting)
     }
 
     func runMonitorLoop() {

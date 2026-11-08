@@ -32,7 +32,8 @@ pod lib lint
 xcodebuild test -workspace Example/JYKit.xcworkspace -scheme JYKit-Example -sdk iphonesimulator
 
 # Build only
-xcodebuild build -workspace Example/JYKit.xcworkspace -scheme JYKit-Example
+xcodebuild build -workspace Example/JYKit.xcworkspace -scheme JYKit-Example \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
 ```
 
 ## Key Source Paths
@@ -44,6 +45,6 @@ xcodebuild build -workspace Example/JYKit.xcworkspace -scheme JYKit-Example
 
 ## Development Notes
 
-- iOS deployment target: 11.0, Swift 5.0
+- iOS deployment target: 13.0 (SDK), Swift 5.0；Example demo 为 15.0（新版 Xcode 模拟器最低支持 15.0）
 - The example app is configured with `use_frameworks!`
 - Tests run against `JYKit_Example` scheme in the workspace

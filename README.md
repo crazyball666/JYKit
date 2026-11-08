@@ -13,14 +13,14 @@ JYKit 是一个 iOS 工具库，主要包含动态调试工具、Toast/HUD、二
 
 | 模块 | 说明 |
 | --- | --- |
-| `DyTool` | 调试浮窗、悬浮性能监控、日志 hook、文件管理、Keychain/UserDefaults 管理、UI 层级查看、卡顿监控 |
+| `DyTool` | 调试浮窗、悬浮性能监控、日志 hook、文件管理、Keychain/UserDefaults 管理、UI 层级查看、页面栈、卡顿监控 |
 | `HUD` | Toast 和轻量提示 UI |
 | `QRCode` | 相机扫码、相册选图识别、二维码扫描 UI |
 | `Tools` | 设备信息、运行时消息转发、方法 hook 等底层工具 |
 
 ## 环境要求
 
-- iOS 11.0+
+- iOS 13.0+
 - Swift 5
 - CocoaPods
 
@@ -31,7 +31,7 @@ JYKit 是一个 iOS 工具库，主要包含动态调试工具、Toast/HUD、二
 推荐业务项目直接使用 Release 产物，省去本地编译源码的时间：
 
 ```ruby
-pod 'JYKitBinary', :podspec => 'https://github.com/crazyball666/JYKit/releases/download/v0.0.2/JYKitBinary.podspec'
+pod 'JYKitBinary', :podspec => 'https://github.com/crazyball666/JYKit/releases/download/v0.0.4/JYKitBinary.podspec'
 ```
 
 二进制包内包含 `JYKit.xcframework`，Swift/Objective-C 模块名仍然是 `JYKit`：
@@ -77,6 +77,14 @@ DynamicTools.setup()
 - App 启动约 2 秒后展示悬浮球。
 - 摇一摇也会重新展示悬浮球。
 
+打开悬浮球或点击悬浮监控面板即可进入工具主界面，包含：
+
+- 性能监控：悬浮监控设置、卡顿监控
+- 调试工具：日志查看、UI 层级查看（支持高亮与实时修改 frame/背景色/透明度/文本等属性）、页面栈
+- 数据管理：Keychain、UserDefaults（支持搜索、新增、编辑、删除）
+- 文件：沙盒与包体文件浏览
+- 环境信息：App 现场信息、启动参数、释放内存
+
 如果需要手动展示悬浮球：
 
 ```swift
@@ -89,6 +97,11 @@ DynamicTools.showBall()
 DynamicTools.setLagMonitorEnabled(true)
 DynamicTools.setLagMonitorThresholdMilliseconds(500)
 ```
+
+调试用启动参数（便于自动化）：
+
+- `-JYKitShowPanel`：启动后直接打开工具主界面。
+- `-JYKitTool <name>`：配合上一条直接进入指定页面，可选值：`monitor`、`lag`、`logs`、`inspector`、`vcstack`、`keychain`、`userdefaults`、`sandbox`、`bundle`、`appinfo`、`processinfo`、`memory`。
 
 ### HUD
 
@@ -135,7 +148,7 @@ git push origin v0.0.3
 发布完成后，使用对应版本的 podspec URL 即可：
 
 ```ruby
-pod 'JYKitBinary', :podspec => 'https://github.com/crazyball666/JYKit/releases/download/v0.0.3/JYKitBinary.podspec'
+pod 'JYKitBinary', :podspec => 'https://github.com/crazyball666/JYKit/releases/download/v0.0.4/JYKitBinary.podspec'
 ```
 
 ## License

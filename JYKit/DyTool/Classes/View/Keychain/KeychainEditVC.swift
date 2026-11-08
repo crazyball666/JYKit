@@ -5,17 +5,23 @@
 
 import UIKit
 
-class KeychainEditVC: DYBaseVC {
+final class KeychainEditVC: DYBaseVC {
     private var item: KeychainItem?
     private var selectedType: KeychainValueType = .string
 
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let keyLabel = UILabel()
     private let keyTextField = UITextField()
+    private let typeLabel = UILabel()
     private let typeSegment = UISegmentedControl(items: KeychainValueType.allCases.map { $0.rawValue })
+    private let valueLabel = UILabel()
     private let valueTextView = UITextView()
+    private let hintLabel = UILabel()
     private let saveButton = UIButton(type: .system)
+    private let copyButton = UIButton(type: .system)
     private let deleteButton = UIButton(type: .system)
+    private let buttonStack = UIStackView()
 
     var onSave: (() -> Void)?
 
@@ -31,21 +37,12 @@ class KeychainEditVC: DYBaseVC {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
         title = item == nil ? "添加条目" : "编辑条目"
 
         setupScrollView()
         setupUI()
-
-        if let item = item {
-            keyTextField.text = item.key
-            keyTextField.isEnabled = false
-            typeSegment.selectedSegmentIndex = KeychainValueType.allCases.firstIndex(of: item.type) ?? 0
-            typeSegment.isEnabled = false  // 禁止修改类型，避免类型不匹配
-            valueTextView.text = stringValue(item)
-        } else {
-            typeSegment.selectedSegmentIndex = KeychainValueType.allCases.firstIndex(of: selectedType) ?? 0
-        }
+        populateData()
+        updateValueStyle()
     }
 
     private func setupScrollView() {
@@ -69,142 +66,154 @@ class KeychainEditVC: DYBaseVC {
     }
 
     private func setupUI() {
-        let labelWidth: CGFloat = 80
-        let leadingInset: CGFloat = 16
-        let trailingInset: CGFloat = 16
-        let stackSpacing: CGFloat = 16
+        let margin: CGFloat = 16
         let cornerRadius: CGFloat = 8
 
-        // key label
-        let keyLabel = UILabel()
-        keyLabel.text = "Key:"
-        keyLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(keyLabel)
-
-        // key text field
-        keyTextField.translatesAutoresizingMaskIntoConstraints = false
+        keyLabel.text = "Key"
+        keyLabel.font = .systemFont(ofSize: 14, weight: .semibold)
         keyTextField.borderStyle = .roundedRect
         keyTextField.placeholder = "输入 key"
-        keyTextField.layer.cornerRadius = cornerRadius
-        keyTextField.clipsToBounds = true
-        contentView.addSubview(keyTextField)
+        keyTextField.font = .systemFont(ofSize: 15)
+        keyTextField.autocapitalizationType = .none
+        keyTextField.clearButtonMode = .whileEditing
 
-        // type label
-        let typeLabel = UILabel()
-        typeLabel.text = "Type:"
-        typeLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(typeLabel)
-
-        // type segment
-        typeSegment.translatesAutoresizingMaskIntoConstraints = false
+        typeLabel.text = "类型"
+        typeLabel.font = .systemFont(ofSize: 14, weight: .semibold)
         typeSegment.addTarget(self, action: #selector(typeChanged), for: .valueChanged)
-        contentView.addSubview(typeSegment)
 
-        // value label
-        let valueLabel = UILabel()
-        valueLabel.text = "Value:"
-        valueLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(valueLabel)
-
-        // value text view
-        valueTextView.translatesAutoresizingMaskIntoConstraints = false
-        valueTextView.layer.borderColor = UIColor.lightGray.cgColor
+        valueLabel.text = "Value"
+        valueLabel.font = .systemFont(ofSize: 14, weight: .semibold)
         valueTextView.layer.borderWidth = 1
+        valueTextView.layer.borderColor = DYStyle.separator.cgColor
         valueTextView.layer.cornerRadius = cornerRadius
+        valueTextView.backgroundColor = DYStyle.secondaryBackground
+        valueTextView.textColor = DYStyle.text
+        valueTextView.textContainerInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
         valueTextView.font = .systemFont(ofSize: 14)
-        contentView.addSubview(valueTextView)
 
-        // save button
-        saveButton.translatesAutoresizingMaskIntoConstraints = false
+        hintLabel.font = .systemFont(ofSize: 12)
+        hintLabel.textColor = DYStyle.secondaryText
+        hintLabel.numberOfLines = 0
+        hintLabel.text = "Bool 填写 true / false；Data 填写十六进制字符串"
+
         saveButton.setTitle("保存", for: .normal)
+        saveButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         saveButton.backgroundColor = .systemBlue
         saveButton.setTitleColor(.white, for: .normal)
         saveButton.layer.cornerRadius = cornerRadius
+        saveButton.heightAnchor.constraint(equalToConstant: 46).isActive = true
         saveButton.addTarget(self, action: #selector(saveItem), for: .touchUpInside)
-        contentView.addSubview(saveButton)
 
-        // delete button (if editing existing item)
-        var deleteButtonConstraints: [NSLayoutConstraint] = []
+        copyButton.setTitle("复制 Value", for: .normal)
+        copyButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
+        copyButton.backgroundColor = UIColor.systemGray.withAlphaComponent(0.15)
+        copyButton.setTitleColor(.systemBlue, for: .normal)
+        copyButton.layer.cornerRadius = cornerRadius
+        copyButton.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        copyButton.addTarget(self, action: #selector(copyValue), for: .touchUpInside)
+
+        deleteButton.setTitle("删除条目", for: .normal)
+        deleteButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        deleteButton.backgroundColor = .systemRed
+        deleteButton.setTitleColor(.white, for: .normal)
+        deleteButton.layer.cornerRadius = cornerRadius
+        deleteButton.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        deleteButton.addTarget(self, action: #selector(deleteItem), for: .touchUpInside)
+
+        buttonStack.axis = .vertical
+        buttonStack.spacing = 12
+        buttonStack.addArrangedSubview(saveButton)
+        buttonStack.addArrangedSubview(copyButton)
         if item != nil {
-            deleteButton.translatesAutoresizingMaskIntoConstraints = false
-            deleteButton.setTitle("删除", for: .normal)
-            deleteButton.backgroundColor = .systemRed
-            deleteButton.setTitleColor(.white, for: .normal)
-            deleteButton.layer.cornerRadius = cornerRadius
-            deleteButton.addTarget(self, action: #selector(deleteItem), for: .touchUpInside)
-            contentView.addSubview(deleteButton)
-
-            let buttonWidth = (UIScreen.main.bounds.width - 48 - leadingInset - trailingInset) / 2
-            deleteButtonConstraints = [
-                deleteButton.topAnchor.constraint(equalTo: valueTextView.bottomAnchor, constant: stackSpacing),
-                deleteButton.leadingAnchor.constraint(equalTo: saveButton.trailingAnchor, constant: 16),
-                deleteButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -trailingInset),
-                deleteButton.heightAnchor.constraint(equalToConstant: 44),
-                deleteButton.widthAnchor.constraint(equalToConstant: buttonWidth)
-            ]
+            buttonStack.addArrangedSubview(deleteButton)
         }
 
-        // save button width constraint
-        let saveButtonWidth = saveButton.widthAnchor.constraint(equalToConstant: (UIScreen.main.bounds.width - 48 - leadingInset - trailingInset) / 2)
-        saveButtonWidth.priority = .defaultHigh
-        saveButtonWidth.isActive = true
+        [keyLabel, keyTextField, typeLabel, typeSegment, valueLabel, valueTextView, hintLabel, buttonStack].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview($0)
+        }
 
         NSLayoutConstraint.activate([
-            // key label
-            keyLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 24),
-            keyLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: leadingInset),
-            keyLabel.widthAnchor.constraint(equalToConstant: labelWidth),
+            keyLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            keyLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
 
-            // key text field
-            keyTextField.centerYAnchor.constraint(equalTo: keyLabel.centerYAnchor),
-            keyTextField.leadingAnchor.constraint(equalTo: keyLabel.trailingAnchor, constant: 8),
-            keyTextField.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -trailingInset),
-            keyTextField.heightAnchor.constraint(equalToConstant: 30),
+            keyTextField.topAnchor.constraint(equalTo: keyLabel.bottomAnchor, constant: 6),
+            keyTextField.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            keyTextField.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+            keyTextField.heightAnchor.constraint(equalToConstant: 40),
 
-            // type label
-            typeLabel.topAnchor.constraint(equalTo: keyLabel.bottomAnchor, constant: stackSpacing),
-            typeLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: leadingInset),
-            typeLabel.widthAnchor.constraint(equalToConstant: labelWidth),
+            typeLabel.topAnchor.constraint(equalTo: keyTextField.bottomAnchor, constant: 18),
+            typeLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
 
-            // type segment
-            typeSegment.centerYAnchor.constraint(equalTo: typeLabel.centerYAnchor),
-            typeSegment.leadingAnchor.constraint(equalTo: typeLabel.trailingAnchor, constant: 8),
-            typeSegment.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -trailingInset),
-            typeSegment.heightAnchor.constraint(equalToConstant: 30),
+            typeSegment.topAnchor.constraint(equalTo: typeLabel.bottomAnchor, constant: 6),
+            typeSegment.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            typeSegment.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+            typeSegment.heightAnchor.constraint(equalToConstant: 32),
 
-            // value label
-            valueLabel.topAnchor.constraint(equalTo: typeLabel.bottomAnchor, constant: stackSpacing),
-            valueLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: leadingInset),
-            valueLabel.widthAnchor.constraint(equalToConstant: labelWidth),
+            valueLabel.topAnchor.constraint(equalTo: typeSegment.bottomAnchor, constant: 18),
+            valueLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
 
-            // value text view - with minimum height and ability to expand
-            valueTextView.topAnchor.constraint(equalTo: valueLabel.bottomAnchor, constant: 8),
-            valueTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: leadingInset),
-            valueTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -trailingInset),
-            valueTextView.heightAnchor.constraint(greaterThanOrEqualToConstant: 150),
+            valueTextView.topAnchor.constraint(equalTo: valueLabel.bottomAnchor, constant: 6),
+            valueTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            valueTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+            valueTextView.heightAnchor.constraint(equalToConstant: 180),
 
-            // save button
-            saveButton.topAnchor.constraint(equalTo: valueTextView.bottomAnchor, constant: stackSpacing),
-            saveButton.heightAnchor.constraint(equalToConstant: 44),
+            hintLabel.topAnchor.constraint(equalTo: valueTextView.bottomAnchor, constant: 6),
+            hintLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            hintLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
 
-            // bottom constraint for content view
-            contentView.bottomAnchor.constraint(equalTo: saveButton.bottomAnchor, constant: 24)
-        ] + deleteButtonConstraints)
+            buttonStack.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: 24),
+            buttonStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            buttonStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+            buttonStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -30)
+        ])
+    }
 
-        // Center save button when no delete button
-        if item == nil {
-            saveButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor).isActive = true
+    private func populateData() {
+        guard let item = item else {
+            typeSegment.selectedSegmentIndex = KeychainValueType.allCases.firstIndex(of: selectedType) ?? 0
+            return
+        }
+        keyTextField.text = item.key
+        keyTextField.isEnabled = false
+        keyTextField.textColor = DYStyle.secondaryText
+        typeSegment.selectedSegmentIndex = KeychainValueType.allCases.firstIndex(of: item.type) ?? 0
+        // 禁止修改类型，避免与已存储的数据格式不匹配
+        typeSegment.isEnabled = false
+        valueTextView.text = stringValue(item)
+    }
+
+    private func updateValueStyle() {
+        if selectedType == .data {
+            valueTextView.font = DYStyle.monospacedFont(size: 13)
         } else {
-            saveButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: leadingInset).isActive = true
+            valueTextView.font = .systemFont(ofSize: 14)
+        }
+
+        switch selectedType {
+        case .bool:
+            hintLabel.text = "填写 true 或 false"
+        case .int:
+            hintLabel.text = "填写整数，例如 100"
+        case .double:
+            hintLabel.text = "填写浮点数，例如 3.14"
+        case .data:
+            hintLabel.text = "填写十六进制字符串，例如 01abff"
+        case .string:
+            hintLabel.text = "填写任意字符串"
         }
     }
 
     @objc private func typeChanged() {
+        guard KeychainValueType.allCases.indices.contains(typeSegment.selectedSegmentIndex) else {
+            return
+        }
         selectedType = KeychainValueType.allCases[typeSegment.selectedSegmentIndex]
+        updateValueStyle()
     }
 
     @objc private func saveItem() {
-        guard let key = keyTextField.text, !key.isEmpty else {
+        guard let key = keyTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty else {
             JYToast.show("请输入 key")
             return
         }
@@ -217,13 +226,30 @@ class KeychainEditVC: DYBaseVC {
         case .string:
             value = valueString
         case .bool:
-            value = valueString.lowercased() == "true" || valueString == "1"
+            let lower = valueString.lowercased()
+            guard lower == "true" || lower == "1" || lower == "false" || lower == "0" else {
+                JYToast.show("Bool 值请填写 true 或 false")
+                return
+            }
+            value = (lower == "true" || lower == "1")
         case .int:
-            value = Int(valueString) ?? 0
+            guard let intValue = Int(valueString) else {
+                JYToast.show("请输入有效的整数")
+                return
+            }
+            value = intValue
         case .double:
-            value = Double(valueString) ?? 0
+            guard let doubleValue = Double(valueString) else {
+                JYToast.show("请输入有效的浮点数")
+                return
+            }
+            value = doubleValue
         case .data:
-            value = Data(hexString: valueString) ?? Data()
+            guard let data = Data(hexString: valueString) else {
+                JYToast.show("请输入有效的十六进制字符串")
+                return
+            }
+            value = data
         }
 
         let didSave: Bool
@@ -235,18 +261,27 @@ class KeychainEditVC: DYBaseVC {
 
         if didSave {
             onSave?()
+            JYToast.show("保存成功")
             navigationController?.popViewController(animated: true)
         } else {
             JYToast.show("保存失败")
         }
     }
 
+    @objc private func copyValue() {
+        UIPasteboard.general.string = valueTextView.text
+        JYToast.show("已复制")
+    }
+
     @objc private func deleteItem() {
         guard let item = item else { return }
-        Tools.showAlert(title: "确认删除？", confirmHandler: { [weak self] in
+        Tools.showAlert(title: "确认删除？", message: item.key, confirmHandler: { [weak self] in
             if KeychainManager.delete(item: item) {
+                JYToast.show("已删除")
                 self?.onSave?()
                 self?.navigationController?.popViewController(animated: true)
+            } else {
+                JYToast.show("删除失败")
             }
         })
     }

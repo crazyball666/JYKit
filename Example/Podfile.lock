@@ -1,15 +1,15 @@
 PODS:
-  - JYKit (0.0.1):
-    - JYKit/DyTool (= 0.0.1)
-    - JYKit/HUD (= 0.0.1)
-    - JYKit/QRCode (= 0.0.1)
-    - JYKit/Tools (= 0.0.1)
-  - JYKit/DyTool (0.0.1):
+  - JYKit (0.0.4):
+    - JYKit/DyTool (= 0.0.4)
+    - JYKit/HUD (= 0.0.4)
+    - JYKit/QRCode (= 0.0.4)
+    - JYKit/Tools (= 0.0.4)
+  - JYKit/DyTool (0.0.4):
     - JYKit/HUD
     - JYKit/Tools
-  - JYKit/HUD (0.0.1)
-  - JYKit/QRCode (0.0.1)
-  - JYKit/Tools (0.0.1)
+  - JYKit/HUD (0.0.4)
+  - JYKit/QRCode (0.0.4)
+  - JYKit/Tools (0.0.4)
 
 DEPENDENCIES:
   - JYKit (from `../`)
@@ -19,8 +19,8 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  JYKit: 6fabbccd1c787eae0e56d13daacb917bad760422
+  JYKit: 4ca181f735592be7578214af6cd565f338e40b5c
 
-PODFILE CHECKSUM: 991a9fb2c79bd08ef18403bb278ff4bc37e9b49d
+PODFILE CHECKSUM: 27b452aba78bae143039e5704ed64edd76ae3c36
 
 COCOAPODS: 1.15.2

@@ -26,6 +26,7 @@ class DYFloatingView: UIView {
     var edgePolicy: DYFloatingEdgePolicy = .leftRightEdge
     var panGestureRecognizer: UIPanGestureRecognizer?
     var tapGestureRecognizer: UITapGestureRecognizer?
+    private var isObservingOrientation = false
     
     // 悬浮窗的安全区域
     var safeFloatingAreaInsets: UIEdgeInsets {
@@ -52,8 +53,8 @@ class DYFloatingView: UIView {
     
     func install() {
         if self.superview == nil {
-            DYFMainWindow.shared.attachToActiveSceneIfNeeded()
-            DYFMainWindow.shared.addSubview(self)
+            DYMainWindow.shared.attachToActiveSceneIfNeeded()
+            DYMainWindow.shared.addSubview(self)
             
             if tapGestureRecognizer == nil {
                 tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(onTap))
@@ -63,13 +64,17 @@ class DYFloatingView: UIView {
                 panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(onPan))
                 self.addGestureRecognizer(panGestureRecognizer!)
             }
-            NotificationCenter.default.addObserver(self, selector: #selector(onDeviceOrientationDidChange), name: UIApplication.didChangeStatusBarOrientationNotification, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(onDeviceOrientationDidChange), name: UIDevice.orientationDidChangeNotification, object: nil)
+            if !isObservingOrientation {
+                isObservingOrientation = true
+                UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+            }
         }
     }
-    
+
     func uninstall() {
         self.removeFromSuperview()
-        
+
         if let tapGestureRecognizer = self.tapGestureRecognizer {
             self.removeGestureRecognizer(tapGestureRecognizer)
             self.tapGestureRecognizer = nil
@@ -78,7 +83,11 @@ class DYFloatingView: UIView {
             self.removeGestureRecognizer(panGestureRecognizer)
             self.panGestureRecognizer = nil
         }
-        NotificationCenter.default.removeObserver(self, name: UIApplication.didChangeStatusBarOrientationNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIDevice.orientationDidChangeNotification, object: nil)
+        if isObservingOrientation {
+            isObservingOrientation = false
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        }
     }
     
     @objc func onTap() {}

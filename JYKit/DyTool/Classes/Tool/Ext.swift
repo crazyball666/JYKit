@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 // MARK - Tool Functions
 
@@ -164,6 +165,27 @@ public extension String {
 extension UIImage {
     convenience init?(inSDK name: String) {
         self.init(named: name, in: Bundle.SDK, compatibleWith: nil)
+    }
+}
+
+// MARK: - UIDevice
+extension UIDevice {
+    /// 是否运行在模拟器上
+    static var isSimulator: Bool {
+#if targetEnvironment(simulator)
+        return true
+#else
+        return false
+#endif
+    }
+
+    /// 人类可读的设备型号，模拟器上回退为设备类型，避免展示 arm64 / x86_64。
+    var dy_displayModel: String {
+        let model = JYDeviceInfo.deviceModel()
+        if UIDevice.isSimulator || model.hasPrefix("arm") || model.hasPrefix("x86") {
+            return "\(UIDevice.current.model)（模拟器）"
+        }
+        return model
     }
 }
 

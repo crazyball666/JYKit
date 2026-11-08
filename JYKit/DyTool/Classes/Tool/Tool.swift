@@ -63,14 +63,9 @@ struct Tools {
 
    }
     
-    /// 清空 UD
+    /// 清空 UD（仅清理业务写入的 Key，跳过系统自动维护的配置项，避免破坏 App 语言等系统设置）
     static func clearAllUserDefault() {
-        let userDefaults = UserDefaults.standard
-        let dics = userDefaults.dictionaryRepresentation()
-        for key in dics {
-            userDefaults.removeObject(forKey: key.key)
-        }
-        userDefaults.synchronize()
+        UserDefaultsManager.clearAll()
     }
     
     /// 显示Alert
@@ -81,7 +76,7 @@ struct Tools {
     static func showAlert(title: String?, message: String? = nil, cancelText: String? = "取消", confirmText: String = "确定", cancelHandler: (() -> Void)? = nil, confirmHandler: (() -> Void)? = nil) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         if let cancelText = cancelText {
-            alert.addAction(UIAlertAction.init(title: cancelText, style: .destructive, handler: { _ in
+            alert.addAction(UIAlertAction.init(title: cancelText, style: .cancel, handler: { _ in
                 cancelHandler?()
             }))
         }
