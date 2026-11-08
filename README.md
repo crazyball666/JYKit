@@ -128,6 +128,10 @@ open JYKit.xcworkspace
 
 ```bash
 xcodebuild build -workspace Example/JYKit.xcworkspace -scheme JYKit-Example -sdk iphonesimulator
+
+# 单元测试（需要指定具体模拟器）
+xcodebuild test -workspace Example/JYKit.xcworkspace -scheme JYKit-Example \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
 ```
 
 ## 发布二进制版本

@@ -30,8 +30,9 @@ cd Example && pod install
 # Lint the podspec (validate before publishing)
 pod lib lint
 
-# Run tests via xcodebuild
-xcodebuild test -workspace Example/JYKit.xcworkspace -scheme JYKit-Example -sdk iphonesimulator
+# Run unit tests (requires a concrete simulator destination)
+xcodebuild test -workspace Example/JYKit.xcworkspace -scheme JYKit-Example \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
 
 # Build only
 xcodebuild build -workspace Example/JYKit.xcworkspace -scheme JYKit-Example \

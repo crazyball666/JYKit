@@ -54,6 +54,7 @@ JYKit/
 │   └── release-binary.yml        # push v* tag → 构建 xcframework → 发布 GitHub Release
 ├── docs/superpowers/             # 历史上的设计稿 / 计划（plans, specs），可作为背景资料
 ├── Example/                      # Demo 工程；Example/Pods 已被 .gitignore
+│   └── Tests/                    # 单元测试（JYKit_Tests target，宿主为 Demo App）
 └── JYKit/
     ├── DyTool/Classes/
     │   ├── DynamicTools.swift    # 对外唯一入口 + 启动参数处理
@@ -143,14 +144,24 @@ xcodebuild build \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator'
 
+# 单元测试（JYKit_Tests target）
+xcodebuild test \
+  -workspace Example/JYKit.xcworkspace \
+  -scheme JYKit-Example \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+
 # Podspec 校验（发布前必跑）
 pod lib lint JYKit.podspec --allow-warnings --quick
 ```
 
 > `JYKitBinary.podspec` 是发布模板，仓库内不做 lint；需要验证时请针对 Release 里发布的 podspec 进行。
 
-**注意：`xcodebuild test` 当前不可用** —— Example 工程没有可用的测试 target（Pods 里残留 `Pods-JYKit_Tests` 引用，但工程无 native test target），命令会返回 `There are no test bundles available to test.`。
-不要声称"测试通过"；请使用下面的验证流程。
+测试说明：
+
+- 测试代码在 `Example/Tests/Tests.swift`，通过 `@testable import JYKit` 访问 `internal` 类型（Pods 的 Debug 配置已开启 `ENABLE_TESTABILITY`）。
+- 测试 target 为 `JYKit_Tests`，宿主 App 是 `JYKit_Example`（`TEST_HOST`），因此跑测试会启动 Demo。
+- `-destination` 必须是**具体模拟器**（`name=` 或 `id=`），不能用 `generic/platform=iOS Simulator`。
+- 修改 `Podfile` / podspec 后先 `pod install`，否则测试 target 的配置不会更新。
 
 ---
 
@@ -159,7 +170,8 @@ pod lib lint JYKit.podspec --allow-warnings --quick
 ### 6.1 必做
 
 1. `xcodebuild build ...`（见上）→ **BUILD SUCCEEDED**
-2. 至少跑一次模拟器冒烟（涉及 UI 时）
+2. `xcodebuild test ...`（见上）→ **TEST SUCCEEDED**，新增逻辑必须补对应单测
+3. 至少跑一次模拟器冒烟（涉及 UI 时）
 
 ### 6.2 模拟器冒烟
 
@@ -205,6 +217,7 @@ xcrun simctl io <UDID> screenshot /tmp/jykit.png
 - 对外 API 仅 `DynamicTools`；新增内部类型不要加 `public`。
 - 日志/错误提示用 `JYToast.show(...)`；确认弹窗用 `Tools.showAlert(...)`。
 - 工具页之间的导航只用 `navigationController?.pushViewController`。
+- 数据层 / 工具函数改动必须补单测，放在 `Example/Tests/Tests.swift`，用唯一前缀（如 `JYKitTests.<name>.<UUID>`）并 `tearDown` 清理。
 - 新增用户可见功能后，更新 `README.md` 的功能列表与启动参数说明。
 - 注释写"为什么"，不写"是什么"；已有中文注释风格保持一致。
 
@@ -257,6 +270,8 @@ xcrun simctl io <UDID> screenshot /tmp/jykit.png
 14. `UIDevice.dy_displayModel` 用于模拟器上避免显示 `arm64`；展示设备型号时用它。
 15. 目录 `SharkSDK/`、`View/Log/` 为空，新增文件前确认是否应复用现有目录。
 16. `Example/Pods` 为生成产物，禁止手改、禁止提交。
+17. 跑单测时 `-destination` 必须指定具体模拟器；`xcodebuild test` 不接受 `generic/platform=iOS Simulator`。
+18. 测试通过 `@testable import JYKit` 访问内部类型，不要把仅测试需要的能力改成 `public`。
 
 ---
 
@@ -320,16 +335,10 @@ unzip -q JYKit.xcframework.zip -d /tmp/jykit && \
 
 **收尾**
 - [ ] `xcodebuild build` 通过
+- [ ] `xcodebuild test` 通过（新增逻辑已补测试）
 - [ ] UI 改动在 iOS 18 + iOS 26 模拟器各验证一次，必要时截图
 - [ ] 更新 README（功能、启动参数）；版本变更同步三份文档
 - [ ] 提交信息用约定式前缀（`feat(dytool):` / `fix(ui):` / `ci:` / `docs:`），正文可用中文
 - [ ] 未获明确要求，不执行 `git push`、不发布 tag / Release
 
 ---
-
-## 11. 边界
-
-- 这是调试/逆向辅助工具，**只用于授权范围内的 App**。
-- 不引入私有 API、不绕过系统安全机制、不做越狱环境适配。
-- Keychain/UserDefaults 展示能力仅用于本机调试包；不要把它当作数据脱敏或安全存储方案。
-- SDK 会 hook `print` 并常驻悬浮窗，正式商店包接入前需评估（README 已提示）。
