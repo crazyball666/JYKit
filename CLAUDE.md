@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+详细的开发约定、验证流程、已知坑与发布步骤见 [AGENTS.md](AGENTS.md)。
+
 ## Project Overview
 
 JYKit is a multi-feature iOS utility library distributed via CocoaPods. It contains debugging tools, toast/HUD notifications, QR code scanning, and low-level runtime utilities.
